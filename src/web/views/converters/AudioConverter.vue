@@ -1,25 +1,27 @@
 <template>
-  <div class="audio-converter">
-    <h1>Audio Converter</h1>
-    
-    <div class="converter-content">
-      <FileUpload
-        accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac"
-        hint="Maximum file size: 100MB"
-        :max-size="100 * 1024 * 1024"
-        :multiple="true"
-        :max-files="10"
-        @file-selected="handleFileSelected"
-        @error="handleError"
-      />
+  <div class="converter-layout">
+    <div class="converter-main">
+      <h1>Audio Converter</h1>
+      
+      <div class="upload-section">
+        <FileUpload
+          accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac"
+          hint="Maximum file size: 100MB"
+          :max-size="100 * 1024 * 1024"
+          :multiple="true"
+          :max-files="10"
+          @file-selected="handleFilesSelected"
+          @error="handleError"
+        />
+      </div>
 
-      <div v-if="appStore.currentFiles.length > 0" class="conversion-options">
+      <div class="conversion-options">
         <h2>Conversion Options</h2>
         
         <div class="options-grid">
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="convertToMp3"
           >
             <h3>Convert to MP3</h3>
@@ -28,7 +30,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="convertToWav"
           >
             <h3>Convert to WAV</h3>
@@ -37,7 +39,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="convertToOgg"
           >
             <h3>Convert to OGG</h3>
@@ -46,7 +48,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="compressAudio"
           >
             <h3>Compress Audio</h3>
@@ -55,37 +57,36 @@
         </div>
       </div>
 
-      <div v-if="appStore.error" class="error-message">
-        {{ appStore.error }}
-      </div>
-
-      <div v-if="appStore.isProcessing" class="processing-overlay">
-        <div class="processing-content">
-          <div class="spinner"></div>
-          <p>Processing your audio...</p>
-        </div>
+      <div v-if="error" class="error-message">
+        {{ error }}
       </div>
     </div>
+
+    <aside class="queue-sidebar">
+      <QueueList />
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from "@shared/stores/app"
-import FileUpload from "@components/common/FileUpload.vue"
+import { useQueueStore, type QueuedFile } from '@shared/stores/queue'
+import FileUpload from '@web/components/common/FileUpload.vue'
+import QueueList from '@web/components/queue/QueueList.vue'
 import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import { ref } from 'vue'
 
-const appStore = useAppStore()
+const queueStore = useQueueStore()
 const ffmpeg = new FFmpeg()
+const error = ref<string | null>(null)
 
-function handleFileSelected(file: File) {
-  console.log('[Audio Converter] File selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB')
-  appStore.setCurrentFiles([file])
+function handleFilesSelected(files: File[]) {
+  queueStore.addFiles(files, 'audio', {})
 }
 
 function handleError(message: string) {
+  error.value = message
   console.error('[Audio Converter] Error:', message)
-  appStore.setError(message)
 }
 
 // Initialize FFmpeg
@@ -110,138 +111,159 @@ async function initFFmpeg() {
 }
 
 async function convertAudio(format: string, options: string[] = []) {
-  if (!appStore.currentFiles[0]) return
+  if (!queueStore.pendingFiles.length) return
 
   try {
     console.log(`[Audio Converter] Starting conversion to ${format}...`)
-    appStore.setProcessing(true)
-    appStore.setError(null)
+    queueStore.startProcessing()
+    error.value = null
 
-    // Initialize FFmpeg if not already loaded
-    await initFFmpeg()
+    for (const queuedFile of queueStore.pendingFiles) {
+      const file = queuedFile.file
+      queueStore.updateFileStatus(queuedFile.id, 'processing', 0)
 
-    // Write input file to FFmpeg's virtual filesystem
-    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
-    const outputFileName = 'output' + format
-    console.log('[Audio Converter] Writing input file to FFmpeg filesystem:', inputFileName)
-    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
+      // Initialize FFmpeg if not already loaded
+      await initFFmpeg()
 
-    // Run FFmpeg command
-    console.log('[Audio Converter] Running FFmpeg command with options:', options)
-    await ffmpeg.exec([
-      '-i', inputFileName,
-      ...options,
-      outputFileName
-    ])
-    console.log('[Audio Converter] FFmpeg command completed')
+      // Write input file to FFmpeg's virtual filesystem
+      const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
+      const outputFileName = 'output' + format
+      console.log('[Audio Converter] Writing input file to FFmpeg filesystem:', inputFileName)
+      await ffmpeg.writeFile(inputFileName, await fetchFile(file))
 
-    // Read the output file
-    console.log('[Audio Converter] Reading output file...')
-    const data = await ffmpeg.readFile(outputFileName)
-    const blob = new Blob([data], { type: `audio/${format}` })
-    console.log('[Audio Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
-    
-    // Download the converted file
-    console.log('[Audio Converter] Starting download...')
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${appStore.currentFiles[0].name.split('.')[0]}.${format}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    console.log('[Audio Converter] Download completed')
+      // Run FFmpeg command
+      console.log('[Audio Converter] Running FFmpeg command with options:', options)
+      await ffmpeg.exec([
+        '-i', inputFileName,
+        ...options,
+        outputFileName
+      ])
+      console.log('[Audio Converter] FFmpeg command completed')
 
-  } catch (error) {
-    console.error('[Audio Converter] Conversion failed:', error)
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
+      // Read the output file
+      console.log('[Audio Converter] Reading output file...')
+      const data = await ffmpeg.readFile(outputFileName)
+      const blob = new Blob([data], { type: `audio/${format}` })
+      console.log('[Audio Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
+      
+      // Set the converted file in the queue
+      queueStore.setConvertedFile(queuedFile.id, blob, `${file.name.split('.')[0]}.${format}`)
+      
+      // Download the converted file
+      console.log('[Audio Converter] Starting download...')
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${file.name.split('.')[0]}.${format}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      console.log('[Audio Converter] Download completed')
+    }
+
+  } catch (err) {
+    console.error('[Audio Converter] Conversion failed:', err)
+    error.value = err instanceof Error ? err.message : 'Conversion failed'
+    for (const queuedFile of queueStore.pendingFiles) {
+      queueStore.updateFileStatus(queuedFile.id, 'error', 0, error.value)
+    }
   } finally {
-    appStore.setProcessing(false)
+    queueStore.stopProcessing()
   }
 }
 
 async function convertToMp3() {
-  console.log('[Audio Converter] Converting to MP3...')
-  await convertAudio('mp3', ['-codec:a', 'libmp3lame', '-qscale:a', '2'])
+  await convertAudio('mp3', ['-c:a', 'libmp3lame', '-q:a', '2'])
 }
 
 async function convertToWav() {
-  console.log('[Audio Converter] Converting to WAV...')
-  await convertAudio('wav', ['-codec:a', 'pcm_s16le'])
+  await convertAudio('wav', ['-c:a', 'pcm_s16le'])
 }
 
 async function convertToOgg() {
-  console.log('[Audio Converter] Converting to OGG...')
-  await convertAudio('ogg', ['-codec:a', 'libvorbis', '-qscale:a', '6'])
-}
-
-async function convertToAac() {
-  console.log('[Audio Converter] Converting to AAC...')
-  await convertAudio('aac', ['-codec:a', 'aac', '-b:a', '192k'])
+  await convertAudio('ogg', ['-c:a', 'libvorbis', '-q:a', '4'])
 }
 
 async function compressAudio() {
-  if (!appStore.currentFiles[0]) return
+  if (!queueStore.pendingFiles.length) return
 
   try {
     console.log('[Audio Converter] Starting audio compression...')
-    appStore.setProcessing(true)
-    appStore.setError(null)
+    queueStore.startProcessing()
+    error.value = null
 
-    // Initialize FFmpeg if not already loaded
-    await initFFmpeg()
+    for (const queuedFile of queueStore.pendingFiles) {
+      const file = queuedFile.file
+      queueStore.updateFileStatus(queuedFile.id, 'processing', 0)
 
-    // Write input file to FFmpeg's virtual filesystem
-    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
-    const outputFileName = 'output' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
-    console.log('[Audio Converter] Writing input file to FFmpeg filesystem:', inputFileName)
-    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
+      // Initialize FFmpeg if not already loaded
+      await initFFmpeg()
 
-    // Compress audio
-    console.log('[Audio Converter] Compressing audio...')
-    await ffmpeg.exec([
-      '-i', inputFileName,
-      '-codec:a', 'libmp3lame',
-      '-qscale:a', '4', // Compression quality (2-5 is good, higher = more compression)
-      '-ar', '44100', // Sample rate
-      outputFileName
-    ])
-    console.log('[Audio Converter] Audio compression completed')
+      // Write input file to FFmpeg's virtual filesystem
+      const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
+      const outputFileName = 'output' + file.name.substring(file.name.lastIndexOf('.'))
+      console.log('[Audio Converter] Writing input file to FFmpeg filesystem:', inputFileName)
+      await ffmpeg.writeFile(inputFileName, await fetchFile(file))
 
-    // Read the output file
-    console.log('[Audio Converter] Reading output file...')
-    const data = await ffmpeg.readFile(outputFileName)
-    const blob = new Blob([data], { type: appStore.currentFiles[0].type })
-    console.log('[Audio Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
-    
-    // Download the compressed file
-    console.log('[Audio Converter] Starting download...')
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `compressed_${appStore.currentFiles[0].name}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    console.log('[Audio Converter] Download completed')
+      // Compress audio
+      console.log('[Audio Converter] Compressing audio...')
+      await ffmpeg.exec([
+        '-i', inputFileName,
+        '-c:a', 'libmp3lame',
+        '-q:a', '4', // Lower quality for smaller file size
+        '-ar', '44100', // Standard sample rate
+        '-ac', '2', // Stereo
+        outputFileName
+      ])
+      console.log('[Audio Converter] Audio compression completed')
 
-  } catch (error) {
-    console.error('[Audio Converter] Compression failed:', error)
-    appStore.setError(error instanceof Error ? error.message : 'Compression failed')
+      // Read the output file
+      console.log('[Audio Converter] Reading output file...')
+      const data = await ffmpeg.readFile(outputFileName)
+      const blob = new Blob([data], { type: file.type })
+      console.log('[Audio Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
+      
+      // Set the converted file in the queue
+      queueStore.setConvertedFile(queuedFile.id, blob, `compressed_${file.name}`)
+      
+      // Download the compressed file
+      console.log('[Audio Converter] Starting download...')
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `compressed_${file.name}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      console.log('[Audio Converter] Download completed')
+    }
+
+  } catch (err) {
+    console.error('[Audio Converter] Compression failed:', err)
+    error.value = err instanceof Error ? err.message : 'Compression failed'
+    for (const queuedFile of queueStore.pendingFiles) {
+      queueStore.updateFileStatus(queuedFile.id, 'error', 0, error.value)
+    }
   } finally {
-    appStore.setProcessing(false)
+    queueStore.stopProcessing()
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.audio-converter {
-  max-width: 1200px;
+.converter-layout {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 2rem;
+  min-height: calc(100vh - 140px);
+}
 
+.converter-main {
   h1 {
     text-align: center;
     margin-bottom: 2rem;
@@ -249,8 +271,12 @@ async function compressAudio() {
   }
 }
 
-.converter-content {
-  position: relative;
+.upload-section {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  margin-bottom: 2rem;
 }
 
 .conversion-options {
@@ -311,40 +337,12 @@ async function compressAudio() {
   text-align: center;
 }
 
-.processing-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.processing-content {
-  text-align: center;
-
-  .spinner {
-    width: 40px;
-    height: 40px;
-    margin: 0 auto 1rem;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #42b883;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  p {
-    color: #2c3e50;
-    font-size: 1.1rem;
-  }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.queue-sidebar {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
 }
 </style> 

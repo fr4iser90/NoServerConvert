@@ -1,16 +1,18 @@
 <script setup lang="ts">
-// Component logic will be added here
+// No setup needed for now
 </script>
 
 <template>
   <div class="app">
     <nav class="nav">
-      <router-link to="/" class="nav-logo">NoServerConvert</router-link>
+      <router-link to="/" class="nav-logo">
+        NoServerConvert
+      </router-link>
       <div class="nav-links">
-        <router-link to="/pdf">PDF</router-link>
-        <router-link to="/image">Image</router-link>
-        <router-link to="/video">Video</router-link>
-        <router-link to="/audio">Audio</router-link>
+        <router-link to="/convert/pdf">PDF</router-link>
+        <router-link to="/convert/image">Image</router-link>
+        <router-link to="/convert/audio">Audio</router-link>
+        <router-link to="/convert/video">Video</router-link>
       </div>
     </nav>
 
@@ -29,7 +31,7 @@
 </template>
 
 <style lang="scss">
-// Reset and base styles
+// Global styles
 * {
   margin: 0;
   padding: 0;
@@ -41,17 +43,16 @@ body {
     Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   line-height: 1.6;
   color: #2c3e50;
-  background: #f5f7fa;
+  background: #f8f9fa;
 }
 
-// App layout
+// App styles
 .app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-// Navigation
 .nav {
   background: #fff;
   padding: 1rem 2rem;
@@ -59,46 +60,49 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
 
-  .nav-logo {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #2c3e50;
-    text-decoration: none;
+.nav-logo {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2c3e50;
+  text-decoration: none;
+
+  &:hover {
+    color: #42b883;
   }
+}
 
-  .nav-links {
-    display: flex;
-    gap: 2rem;
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
 
-    a {
-      color: #666;
-      text-decoration: none;
+  a {
+    color: #666;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+
+    &:hover {
+      color: #42b883;
+    }
+
+    &.router-link-active {
+      color: #42b883;
       font-weight: 500;
-      transition: color 0.2s;
-
-      &:hover {
-        color: #2c3e50;
-      }
-
-      &.router-link-active {
-        color: #42b883;
-      }
     }
   }
 }
 
-// Main content
 .main {
   flex: 1;
-  padding: 2rem 0;
 }
 
-// Footer
 .footer {
   background: #fff;
-  padding: 1.5rem;
+  padding: 1rem;
   text-align: center;
+  font-size: 0.875rem;
   color: #666;
   box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
 }

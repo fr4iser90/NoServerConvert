@@ -1,25 +1,27 @@
 <template>
-  <div class="video-converter">
-    <h1>Video Converter</h1>
-    
-    <div class="converter-content">
-      <FileUpload
-        accept="video/*,.mp4,.webm,.avi,.mov,.mkv"
-        hint="Maximum file size: 500MB"
-        :max-size="500 * 1024 * 1024"
-        :multiple="true"
-        :max-files="5"
-        @file-selected="handleFileSelected"
-        @error="handleError"
-      />
+  <div class="converter-layout">
+    <div class="converter-main">
+      <h1>Video Converter</h1>
+      
+      <div class="upload-section">
+        <FileUpload
+          accept="video/*,.mp4,.webm,.avi,.mov,.mkv"
+          hint="Maximum file size: 500MB"
+          :max-size="500 * 1024 * 1024"
+          :multiple="true"
+          :max-files="5"
+          @file-selected="handleFilesSelected"
+          @error="handleError"
+        />
+      </div>
 
-      <div v-if="appStore.currentFiles.length > 0" class="conversion-options">
+      <div class="conversion-options">
         <h2>Conversion Options</h2>
         
         <div class="options-grid">
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="convertToMp4"
           >
             <h3>Convert to MP4</h3>
@@ -28,7 +30,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="convertToWebm"
           >
             <h3>Convert to WebM</h3>
@@ -37,7 +39,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="extractAudio"
           >
             <h3>Extract Audio</h3>
@@ -46,7 +48,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="compressVideo"
           >
             <h3>Compress Video</h3>
@@ -55,37 +57,36 @@
         </div>
       </div>
 
-      <div v-if="appStore.error" class="error-message">
-        {{ appStore.error }}
-      </div>
-
-      <div v-if="appStore.isProcessing" class="processing-overlay">
-        <div class="processing-content">
-          <div class="spinner"></div>
-          <p>Processing your video...</p>
-        </div>
+      <div v-if="error" class="error-message">
+        {{ error }}
       </div>
     </div>
+
+    <aside class="queue-sidebar">
+      <QueueList />
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from "@shared/stores/app"
-import FileUpload from "@components/common/FileUpload.vue"
+import { useQueueStore, type QueuedFile } from '@shared/stores/queue'
+import FileUpload from '@web/components/common/FileUpload.vue'
+import QueueList from '@web/components/queue/QueueList.vue'
 import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import { ref } from 'vue'
 
-const appStore = useAppStore()
+const queueStore = useQueueStore()
 const ffmpeg = new FFmpeg()
+const error = ref<string | null>(null)
 
-function handleFileSelected(file: File) {
-  console.log('[Video Converter] File selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB')
-  appStore.setCurrentFiles([file])
+function handleFilesSelected(files: File[]) {
+  queueStore.addFiles(files, 'video', {})
 }
 
 function handleError(message: string) {
+  error.value = message
   console.error('[Video Converter] Error:', message)
-  appStore.setError(message)
 }
 
 // Initialize FFmpeg
@@ -110,21 +111,25 @@ async function initFFmpeg() {
 }
 
 async function convertVideo(format: string, options: string[] = []) {
-  if (!appStore.currentFiles[0]) return
+  if (!queueStore.pendingFiles.length) return
 
   try {
     console.log(`[Video Converter] Starting conversion to ${format}...`)
-    appStore.setProcessing(true)
-    appStore.setError(null)
+    queueStore.startProcessing()
+    error.value = null
+
+    const queuedFile = queueStore.pendingFiles[0]
+    const file = queuedFile.file
+    queueStore.updateFileStatus(queuedFile.id, 'processing', 0)
 
     // Initialize FFmpeg if not already loaded
     await initFFmpeg()
 
     // Write input file to FFmpeg's virtual filesystem
-    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
+    const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
     const outputFileName = 'output' + format
     console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
-    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
+    await ffmpeg.writeFile(inputFileName, await fetchFile(file))
 
     // Run FFmpeg command
     console.log('[Video Converter] Running FFmpeg command with options:', options)
@@ -141,23 +146,29 @@ async function convertVideo(format: string, options: string[] = []) {
     const blob = new Blob([data], { type: `video/${format}` })
     console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
+    // Set the converted file in the queue
+    queueStore.setConvertedFile(queuedFile.id, blob, `${file.name.split('.')[0]}.${format}`)
+    
     // Download the converted file
     console.log('[Video Converter] Starting download...')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${appStore.currentFiles[0].name.split('.')[0]}.${format}`
+    a.download = `${file.name.split('.')[0]}.${format}`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     console.log('[Video Converter] Download completed')
 
-  } catch (error) {
-    console.error('[Video Converter] Conversion failed:', error)
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
+  } catch (err) {
+    console.error('[Video Converter] Conversion failed:', err)
+    error.value = err instanceof Error ? err.message : 'Conversion failed'
+    if (queueStore.pendingFiles[0]) {
+      queueStore.updateFileStatus(queueStore.pendingFiles[0].id, 'error', 0, error.value)
+    }
   } finally {
-    appStore.setProcessing(false)
+    queueStore.stopProcessing()
   }
 }
 
@@ -172,21 +183,21 @@ async function convertToWebm() {
 }
 
 async function extractAudio() {
-  if (!appStore.currentFiles[0]) return
+  if (!queueStore.pendingFiles.length) return
 
   try {
     console.log('[Video Converter] Starting audio extraction...')
-    appStore.setProcessing(true)
-    appStore.setError(null)
+    queueStore.setProcessing(true)
+    queueStore.setError(null)
 
     // Initialize FFmpeg if not already loaded
     await initFFmpeg()
 
     // Write input file to FFmpeg's virtual filesystem
-    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
+    const inputFileName = 'input' + queueStore.pendingFiles[0].name.substring(queueStore.pendingFiles[0].name.lastIndexOf('.'))
     const outputFileName = 'output.mp3'
     console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
-    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
+    await ffmpeg.writeFile(inputFileName, await fetchFile(queueStore.pendingFiles[0]))
 
     // Extract audio
     console.log('[Video Converter] Extracting audio...')
@@ -210,7 +221,7 @@ async function extractAudio() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${appStore.currentFiles[0].name.split('.')[0]}.mp3`
+    a.download = `${queueStore.pendingFiles[0].name.split('.')[0]}.mp3`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -219,28 +230,28 @@ async function extractAudio() {
 
   } catch (error) {
     console.error('[Video Converter] Audio extraction failed:', error)
-    appStore.setError(error instanceof Error ? error.message : 'Extraction failed')
+    queueStore.setError(error instanceof Error ? error.message : 'Extraction failed')
   } finally {
-    appStore.setProcessing(false)
+    queueStore.setProcessing(false)
   }
 }
 
 async function compressVideo() {
-  if (!appStore.currentFiles[0]) return
+  if (!queueStore.pendingFiles.length) return
 
   try {
     console.log('[Video Converter] Starting video compression...')
-    appStore.setProcessing(true)
-    appStore.setError(null)
+    queueStore.setProcessing(true)
+    queueStore.setError(null)
 
     // Initialize FFmpeg if not already loaded
     await initFFmpeg()
 
     // Write input file to FFmpeg's virtual filesystem
-    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
-    const outputFileName = 'output' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
+    const inputFileName = 'input' + queueStore.pendingFiles[0].name.substring(queueStore.pendingFiles[0].name.lastIndexOf('.'))
+    const outputFileName = 'output' + queueStore.pendingFiles[0].name.substring(queueStore.pendingFiles[0].name.lastIndexOf('.'))
     console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
-    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
+    await ffmpeg.writeFile(inputFileName, await fetchFile(queueStore.pendingFiles[0]))
 
     // Compress video
     console.log('[Video Converter] Compressing video...')
@@ -258,7 +269,7 @@ async function compressVideo() {
     // Read the output file
     console.log('[Video Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
-    const blob = new Blob([data], { type: appStore.currentFiles[0].type })
+    const blob = new Blob([data], { type: queueStore.pendingFiles[0].type })
     console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the compressed file
@@ -266,7 +277,7 @@ async function compressVideo() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `compressed_${appStore.currentFiles[0].name}`
+    a.download = `compressed_${queueStore.pendingFiles[0].name}`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -275,19 +286,25 @@ async function compressVideo() {
 
   } catch (error) {
     console.error('[Video Converter] Compression failed:', error)
-    appStore.setError(error instanceof Error ? error.message : 'Compression failed')
+    queueStore.setError(error instanceof Error ? error.message : 'Compression failed')
   } finally {
-    appStore.setProcessing(false)
+    queueStore.setProcessing(false)
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.video-converter {
-  max-width: 1200px;
+.converter-layout {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 2rem;
+  min-height: calc(100vh - 140px);
+}
 
+.converter-main {
   h1 {
     text-align: center;
     margin-bottom: 2rem;
@@ -295,8 +312,12 @@ async function compressVideo() {
   }
 }
 
-.converter-content {
-  position: relative;
+.upload-section {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  margin-bottom: 2rem;
 }
 
 .conversion-options {
@@ -392,5 +413,14 @@ async function compressVideo() {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.queue-sidebar {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
 }
 </style> 

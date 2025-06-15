@@ -1,25 +1,27 @@
 <template>
-  <div class="image-converter">
-    <h1>Image Converter</h1>
-    
-    <div class="converter-content">
-      <FileUpload
-        accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff"
-        hint="Maximum file size: 50MB"
-        :max-size="50 * 1024 * 1024"
-        :multiple="true"
-        :max-files="10"
-        @file-selected="handleFileSelected"
-        @error="handleError"
-      />
+  <div class="converter-layout">
+    <div class="converter-main">
+      <h1>Image Converter</h1>
+      
+      <div class="upload-section">
+        <FileUpload
+          accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff"
+          hint="Maximum file size: 50MB"
+          :max-size="50 * 1024 * 1024"
+          :multiple="true"
+          :max-files="10"
+          @file-selected="handleFilesSelected"
+          @error="handleError"
+        />
+      </div>
 
-      <div v-if="appStore.currentFiles.length > 0" class="conversion-options">
+      <div class="conversion-options">
         <h2>Conversion Options</h2>
         
         <div class="options-grid">
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="convertToJpg"
           >
             <h3>Convert to JPG</h3>
@@ -28,7 +30,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="convertToPng"
           >
             <h3>Convert to PNG</h3>
@@ -37,7 +39,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="convertToWebp"
           >
             <h3>Convert to WebP</h3>
@@ -46,7 +48,7 @@
 
           <button
             class="option-card"
-            :disabled="appStore.isProcessing"
+            :disabled="!queueStore.pendingFiles.length"
             @click="compressImage"
           >
             <h3>Compress Image</h3>
@@ -55,55 +57,55 @@
         </div>
       </div>
 
-      <div v-if="appStore.error" class="error-message">
-        {{ appStore.error }}
-      </div>
-
-      <div v-if="appStore.isProcessing" class="processing-overlay">
-        <div class="processing-content">
-          <div class="spinner"></div>
-          <p>Processing your image...</p>
-        </div>
+      <div v-if="error" class="error-message">
+        {{ error }}
       </div>
     </div>
+
+    <aside class="queue-sidebar">
+      <QueueList />
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from "@shared/stores/app"
-import FileUpload from "@components/common/FileUpload.vue"
+import { useQueueStore, type QueuedFile } from '@shared/stores/queue'
+import FileUpload from '@web/components/common/FileUpload.vue'
+import QueueList from '@web/components/queue/QueueList.vue'
+import { ref } from 'vue'
 
-const appStore = useAppStore()
+const queueStore = useQueueStore()
+const error = ref<string | null>(null)
 
-function handleFileSelected(files: File[]) {
-  console.log('[Image Converter] Files selected:', files.length, 'files')
-  
+function handleFilesSelected(files: File[]) {
   // Validiere, dass alle Dateien das gleiche Format haben
   const firstFileType = files[0]?.type.split('/')[1]
   const allSameType = files.every(file => file.type.split('/')[1] === firstFileType)
   
   if (!allSameType) {
-    appStore.setError('Bitte wähle nur Dateien im gleichen Format aus')
+    error.value = 'Bitte wähle nur Dateien im gleichen Format aus'
     return
   }
 
-  // Setze alle Dateien im Store
-  appStore.setCurrentFiles(files)
+  queueStore.addFiles(files, 'image', {})
 }
 
 function handleError(message: string) {
-  appStore.setError(message)
+  error.value = message
+  console.error('[Image Converter] Error:', message)
 }
 
 async function convertImage(format: string, quality?: number) {
-  if (appStore.currentFiles.length === 0) return
+  if (!queueStore.pendingFiles.length) return
 
   try {
-    appStore.setProcessing(true)
-    appStore.setError(null)
+    queueStore.startProcessing()
+    error.value = null
 
-    // Verarbeite alle Dateien
-    for (const file of appStore.currentFiles) {
+    for (const queuedFile of queueStore.pendingFiles) {
+      const file = queuedFile.file
+      queueStore.updateFileStatus(queuedFile.id, 'processing', 0)
+
       // Create an image element
       const img = new Image()
       const objectUrl = URL.createObjectURL(file)
@@ -129,11 +131,14 @@ async function convertImage(format: string, quality?: number) {
       canvas.toBlob((blob) => {
         if (!blob) throw new Error('Could not create image blob')
         
+        // Set the converted file in the queue
+        queueStore.setConvertedFile(queuedFile.id, blob, `${file.name.split('.')[0]}.${format.split('/')[1]}`)
+        
+        // Download the file
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        const extension = format === 'image/jpeg' ? 'jpg' : format.split('/')[1]
-        a.download = `${file.name.split('.')[0]}.${extension}`
+        a.download = `${file.name.split('.')[0]}.${format.split('/')[1]}`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
@@ -141,10 +146,14 @@ async function convertImage(format: string, quality?: number) {
       }, format, quality)
     }
 
-  } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
+  } catch (err) {
+    console.error('[Image Converter] Conversion failed:', err)
+    error.value = err instanceof Error ? err.message : 'Conversion failed'
+    for (const queuedFile of queueStore.pendingFiles) {
+      queueStore.updateFileStatus(queuedFile.id, 'error', 0, error.value)
+    }
   } finally {
-    appStore.setProcessing(false)
+    queueStore.stopProcessing()
   }
 }
 
@@ -161,76 +170,95 @@ async function convertToWebp() {
 }
 
 async function compressImage() {
-  if (!appStore.currentFiles[0]) return
+  if (!queueStore.pendingFiles.length) return
 
   try {
-    appStore.setProcessing(true)
-    appStore.setError(null)
+    queueStore.startProcessing()
+    error.value = null
 
-    // Create an image element
-    const img = new Image()
-    const objectUrl = URL.createObjectURL(appStore.currentFiles[0])
-    
-    await new Promise((resolve, reject) => {
-      img.onload = resolve
-      img.onerror = reject
-      img.src = objectUrl
-    })
+    for (const queuedFile of queueStore.pendingFiles) {
+      const file = queuedFile.file
+      queueStore.updateFileStatus(queuedFile.id, 'processing', 0)
 
-    // Create canvas with image dimensions
-    const canvas = document.createElement('canvas')
-    const maxDimension = 1920 // Max width/height
-    let width = img.width
-    let height = img.height
+      // Create an image element
+      const img = new Image()
+      const objectUrl = URL.createObjectURL(file)
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+        img.src = objectUrl
+      })
 
-    // Scale down if image is too large
-    if (width > maxDimension || height > maxDimension) {
-      if (width > height) {
-        height = (height * maxDimension) / width
-        width = maxDimension
-      } else {
-        width = (width * maxDimension) / height
-        height = maxDimension
+      // Create canvas with image dimensions
+      const canvas = document.createElement('canvas')
+      const maxDimension = 1920 // Max width/height
+      let width = img.width
+      let height = img.height
+
+      // Scale down if image is too large
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = (height * maxDimension) / width
+          width = maxDimension
+        } else {
+          width = (width * maxDimension) / height
+          height = maxDimension
+        }
       }
+
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Could not get canvas context')
+
+      // Draw image on canvas with new dimensions
+      ctx.drawImage(img, 0, 0, width, height)
+      URL.revokeObjectURL(objectUrl)
+
+      // Convert to blob and download with compression
+      canvas.toBlob((blob) => {
+        if (!blob) throw new Error('Could not create image blob')
+        
+        // Set the converted file in the queue
+        queueStore.setConvertedFile(queuedFile.id, blob, `compressed_${file.name}`)
+        
+        // Download the file
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `compressed_${file.name}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }, file.type, 0.8) // 80% quality
     }
 
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Could not get canvas context')
-
-    // Draw image on canvas with new dimensions
-    ctx.drawImage(img, 0, 0, width, height)
-    URL.revokeObjectURL(objectUrl)
-
-    // Convert to blob and download with compression
-    canvas.toBlob((blob) => {
-      if (!blob) throw new Error('Could not create image blob')
-      
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `compressed_${appStore.currentFiles[0]?.name}`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    }, appStore.currentFiles[0].type, 0.8) // 80% quality
-
-  } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Compression failed')
+  } catch (err) {
+    console.error('[Image Converter] Compression failed:', err)
+    error.value = err instanceof Error ? err.message : 'Compression failed'
+    for (const queuedFile of queueStore.pendingFiles) {
+      queueStore.updateFileStatus(queuedFile.id, 'error', 0, error.value)
+    }
   } finally {
-    appStore.setProcessing(false)
+    queueStore.stopProcessing()
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.image-converter {
-  max-width: 1200px;
+.converter-layout {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 2rem;
+  min-height: calc(100vh - 140px);
+}
 
+.converter-main {
   h1 {
     text-align: center;
     margin-bottom: 2rem;
@@ -238,8 +266,12 @@ async function compressImage() {
   }
 }
 
-.converter-content {
-  position: relative;
+.upload-section {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  margin-bottom: 2rem;
 }
 
 .conversion-options {
@@ -300,40 +332,12 @@ async function compressImage() {
   text-align: center;
 }
 
-.processing-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.processing-content {
-  text-align: center;
-
-  .spinner {
-    width: 40px;
-    height: 40px;
-    margin: 0 auto 1rem;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #42b883;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  p {
-    color: #2c3e50;
-    font-size: 1.1rem;
-  }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.queue-sidebar {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
 }
 </style> 

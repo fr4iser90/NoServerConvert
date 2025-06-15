@@ -2,7 +2,8 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createHead } from '@vueuse/head'
 import { createRouter, createWebHistory } from 'vue-router'
-import App from './App.vue'
+import App from '@web/App.vue'
+import Home from '@web/views/Home.vue'
 import './style.css'
 
 // Create app instance
@@ -18,23 +19,23 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      component: () => import('@/views/Home.vue')
+      component: Home
     },
     {
-      path: '/pdf',
-      component: () => import('@/views/converters/PdfConverter.vue')
+      path: '/convert/pdf',
+      component: () => import('@web/views/converters/PdfConverter.vue')
     },
     {
-      path: '/image',
-      component: () => import('@/views/converters/ImageConverter.vue')
+      path: '/convert/image',
+      component: () => import('@web/views/converters/ImageConverter.vue')
     },
     {
-      path: '/video',
-      component: () => import('@/views/converters/VideoConverter.vue')
+      path: '/convert/audio',
+      component: () => import('@web/views/converters/AudioConverter.vue')
     },
     {
-      path: '/audio',
-      component: () => import('@/views/converters/AudioConverter.vue')
+      path: '/convert/video',
+      component: () => import('@web/views/converters/VideoConverter.vue')
     }
   ]
 })
