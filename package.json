@@ -13,7 +13,9 @@
     "preview": "npm run preview:web",
     "preview:web": "BUILD_TARGET=web vite preview",
     "preview:ext": "BUILD_TARGET=extensions vite preview",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
@@ -31,11 +33,12 @@
   "devDependencies": {
     "@playwright/test": "^1.53.0",
     "@types/node": "^24.0.1",
-    "@vitejs/plugin-vue": "^5.2.3",
+    "@vitejs/plugin-vue": "^5.2.4",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.7.0",
     "@vueuse/core": "^13.3.0",
     "@vueuse/head": "^2.0.0",
+    "jsdom": "^26.1.0",
     "pinia": "^3.0.3",
     "sass": "^1.89.2",
     "typescript": "~5.8.3",
