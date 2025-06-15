@@ -158,3 +158,6 @@ The following features are reliably implemented in modern browsers:
 - Opera
 
 Note: Feature availability may vary depending on browser support and version.
+
+## Technical Information
+For detailed information about the technical implementation, development stack, and deployment process, please see [STACK.md](./STACK.md).
