@@ -7,11 +7,13 @@
         accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff"
         hint="Maximum file size: 50MB"
         :max-size="50 * 1024 * 1024"
+        :multiple="true"
+        :max-files="10"
         @file-selected="handleFileSelected"
         @error="handleError"
       />
 
-      <div v-if="appStore.currentFile" class="conversion-options">
+      <div v-if="appStore.currentFiles.length > 0" class="conversion-options">
         <h2>Conversion Options</h2>
         
         <div class="options-grid">
@@ -73,9 +75,20 @@ import FileUpload from '@/components/common/FileUpload.vue'
 
 const appStore = useAppStore()
 
-function handleFileSelected(file: File) {
-  // File is already set in the store by FileUpload component
-  console.log('File selected:', file.name)
+function handleFileSelected(files: File[]) {
+  console.log('[Image Converter] Files selected:', files.length, 'files')
+  
+  // Validiere, dass alle Dateien das gleiche Format haben
+  const firstFileType = files[0]?.type.split('/')[1]
+  const allSameType = files.every(file => file.type.split('/')[1] === firstFileType)
+  
+  if (!allSameType) {
+    appStore.setError('Bitte wähle nur Dateien im gleichen Format aus')
+    return
+  }
+
+  // Setze alle Dateien im Store
+  appStore.setCurrentFiles(files)
 }
 
 function handleError(message: string) {
@@ -83,47 +96,50 @@ function handleError(message: string) {
 }
 
 async function convertImage(format: string, quality?: number) {
-  if (!appStore.currentFile) return
+  if (appStore.currentFiles.length === 0) return
 
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
 
-    // Create an image element
-    const img = new Image()
-    const objectUrl = URL.createObjectURL(appStore.currentFile)
-    
-    await new Promise((resolve, reject) => {
-      img.onload = resolve
-      img.onerror = reject
-      img.src = objectUrl
-    })
-
-    // Create canvas with image dimensions
-    const canvas = document.createElement('canvas')
-    canvas.width = img.width
-    canvas.height = img.height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Could not get canvas context')
-
-    // Draw image on canvas
-    ctx.drawImage(img, 0, 0)
-    URL.revokeObjectURL(objectUrl)
-
-    // Convert to blob and download
-    canvas.toBlob((blob) => {
-      if (!blob) throw new Error('Could not create image blob')
+    // Verarbeite alle Dateien
+    for (const file of appStore.currentFiles) {
+      // Create an image element
+      const img = new Image()
+      const objectUrl = URL.createObjectURL(file)
       
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const extension = format === 'image/jpeg' ? 'jpg' : format.split('/')[1]
-      a.download = `${appStore.currentFile?.name.split('.')[0]}.${extension}`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    }, format, quality)
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+        img.src = objectUrl
+      })
+
+      // Create canvas with image dimensions
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Could not get canvas context')
+
+      // Draw image on canvas
+      ctx.drawImage(img, 0, 0)
+      URL.revokeObjectURL(objectUrl)
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (!blob) throw new Error('Could not create image blob')
+        
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const extension = format === 'image/jpeg' ? 'jpg' : format.split('/')[1]
+        a.download = `${file.name.split('.')[0]}.${extension}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }, format, quality)
+    }
 
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
@@ -145,7 +161,7 @@ async function convertToWebp() {
 }
 
 async function compressImage() {
-  if (!appStore.currentFile) return
+  if (!appStore.currentFiles[0]) return
 
   try {
     appStore.setProcessing(true)
@@ -153,7 +169,7 @@ async function compressImage() {
 
     // Create an image element
     const img = new Image()
-    const objectUrl = URL.createObjectURL(appStore.currentFile)
+    const objectUrl = URL.createObjectURL(appStore.currentFiles[0])
     
     await new Promise((resolve, reject) => {
       img.onload = resolve
@@ -194,12 +210,12 @@ async function compressImage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `compressed_${appStore.currentFile?.name}`
+      a.download = `compressed_${appStore.currentFiles[0]?.name}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-    }, appStore.currentFile.type, 0.8) // 80% quality
+    }, appStore.currentFiles[0].type, 0.8) // 80% quality
 
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Compression failed')

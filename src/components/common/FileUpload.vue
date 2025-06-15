@@ -7,6 +7,7 @@
       @dragleave.prevent="isDragover = false"
       @dragover.prevent
       @drop.prevent="handleDrop"
+      @click="fileInput?.click()"
     >
       <input
         ref="fileInput"
@@ -136,8 +137,11 @@ function validateFiles(files: File[]): File[] {
 }
 
 function handleFiles(files: FileList | File[]) {
+  console.log('[FileUpload] Handling files:', files.length, 'files')
   const fileArray = Array.from(files)
+  console.log('[FileUpload] File array:', fileArray.map(f => ({ name: f.name, size: f.size, type: f.type })))
   const validFiles = validateFiles(fileArray)
+  console.log('[FileUpload] Valid files:', validFiles.length, 'files')
   
   if (validFiles.length > 0) {
     if (props.multiple) {
@@ -145,6 +149,7 @@ function handleFiles(files: FileList | File[]) {
     } else {
       selectedFiles.value = validFiles
     }
+    console.log('[FileUpload] Emitting file-selected event with:', selectedFiles.value.length, 'files')
     emit('file-selected', selectedFiles.value)
   }
 }

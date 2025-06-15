@@ -4,7 +4,7 @@ import { ref } from 'vue'
 export const useAppStore = defineStore('app', () => {
   // State
   const isProcessing = ref(false)
-  const currentFile = ref<File | null>(null)
+  const currentFiles = ref<File[]>([])
   const error = ref<string | null>(null)
   const darkMode = ref(false)
 
@@ -13,8 +13,11 @@ export const useAppStore = defineStore('app', () => {
     isProcessing.value = status
   }
 
-  function setCurrentFile(file: File | null) {
-    currentFile.value = file
+  function setCurrentFiles(files: File[]) {
+    console.log('[Store] Setting current files:', files.length, 'files')
+    console.log('[Store] Files:', files.map(f => ({ name: f.name, size: f.size, type: f.type })))
+    currentFiles.value = files
+    console.log('[Store] Current files after update:', currentFiles.value.length, 'files')
   }
 
   function setError(message: string | null) {
@@ -27,20 +30,20 @@ export const useAppStore = defineStore('app', () => {
 
   function reset() {
     isProcessing.value = false
-    currentFile.value = null
+    currentFiles.value = []
     error.value = null
   }
 
   return {
     // State
     isProcessing,
-    currentFile,
+    currentFiles,
     error,
     darkMode,
 
     // Actions
     setProcessing,
-    setCurrentFile,
+    setCurrentFiles,
     setError,
     toggleDarkMode,
     reset

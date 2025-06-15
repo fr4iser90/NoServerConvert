@@ -7,11 +7,13 @@
         accept="video/*,.mp4,.webm,.avi,.mov,.mkv"
         hint="Maximum file size: 500MB"
         :max-size="500 * 1024 * 1024"
+        :multiple="true"
+        :max-files="5"
         @file-selected="handleFileSelected"
         @error="handleError"
       />
 
-      <div v-if="appStore.currentFile" class="conversion-options">
+      <div v-if="appStore.currentFiles.length > 0" class="conversion-options">
         <h2>Conversion Options</h2>
         
         <div class="options-grid">
@@ -78,6 +80,7 @@ const ffmpeg = new FFmpeg()
 
 function handleFileSelected(file: File) {
   console.log('[Video Converter] File selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB')
+  appStore.setCurrentFiles([file])
 }
 
 function handleError(message: string) {
@@ -107,7 +110,7 @@ async function initFFmpeg() {
 }
 
 async function convertVideo(format: string, options: string[] = []) {
-  if (!appStore.currentFile) return
+  if (!appStore.currentFiles[0]) return
 
   try {
     console.log(`[Video Converter] Starting conversion to ${format}...`)
@@ -118,10 +121,10 @@ async function convertVideo(format: string, options: string[] = []) {
     await initFFmpeg()
 
     // Write input file to FFmpeg's virtual filesystem
-    const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
     const outputFileName = 'output' + format
     console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
-    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
 
     // Run FFmpeg command
     console.log('[Video Converter] Running FFmpeg command with options:', options)
@@ -143,7 +146,7 @@ async function convertVideo(format: string, options: string[] = []) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${appStore.currentFile.name.split('.')[0]}.${format}`
+    a.download = `${appStore.currentFiles[0].name.split('.')[0]}.${format}`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -169,7 +172,7 @@ async function convertToWebm() {
 }
 
 async function extractAudio() {
-  if (!appStore.currentFile) return
+  if (!appStore.currentFiles[0]) return
 
   try {
     console.log('[Video Converter] Starting audio extraction...')
@@ -180,10 +183,10 @@ async function extractAudio() {
     await initFFmpeg()
 
     // Write input file to FFmpeg's virtual filesystem
-    const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
     const outputFileName = 'output.mp3'
     console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
-    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
 
     // Extract audio
     console.log('[Video Converter] Extracting audio...')
@@ -207,7 +210,7 @@ async function extractAudio() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${appStore.currentFile.name.split('.')[0]}.mp3`
+    a.download = `${appStore.currentFiles[0].name.split('.')[0]}.mp3`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -223,7 +226,7 @@ async function extractAudio() {
 }
 
 async function compressVideo() {
-  if (!appStore.currentFile) return
+  if (!appStore.currentFiles[0]) return
 
   try {
     console.log('[Video Converter] Starting video compression...')
@@ -234,10 +237,10 @@ async function compressVideo() {
     await initFFmpeg()
 
     // Write input file to FFmpeg's virtual filesystem
-    const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
-    const outputFileName = 'output' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
+    const outputFileName = 'output' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
     console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
-    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
 
     // Compress video
     console.log('[Video Converter] Compressing video...')
@@ -255,7 +258,7 @@ async function compressVideo() {
     // Read the output file
     console.log('[Video Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
-    const blob = new Blob([data], { type: appStore.currentFile.type })
+    const blob = new Blob([data], { type: appStore.currentFiles[0].type })
     console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the compressed file
@@ -263,7 +266,7 @@ async function compressVideo() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `compressed_${appStore.currentFile.name}`
+    a.download = `compressed_${appStore.currentFiles[0].name}`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
