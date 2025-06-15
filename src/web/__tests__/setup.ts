@@ -380,4 +380,25 @@ global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
 global.URL.revokeObjectURL = vi.fn()
 
 document.body.appendChild = vi.fn()
-document.body.removeChild = vi.fn() 
+document.body.removeChild = vi.fn()
+
+// Mock PDF.js worker
+vi.mock('pdfjs-dist', async () => {
+  const actual = await vi.importActual('pdfjs-dist')
+  return {
+    ...actual,
+    GlobalWorkerOptions: {
+      workerSrc: vi.fn()
+    },
+    getDocument: vi.fn().mockImplementation(() => ({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: vi.fn().mockImplementation(() => ({
+          getViewport: vi.fn().mockReturnValue({ width: 595, height: 842 }),
+          render: vi.fn().mockReturnValue({ promise: Promise.resolve() }),
+          getTextContent: vi.fn().mockReturnValue(Promise.resolve({ items: [] }))
+        }))
+      })
+    }))
+  }
+}) 

@@ -103,15 +103,36 @@ import JSZip from 'jszip'
 import { ref } from 'vue'
 
 // Initialize PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+function initPdfWorker() {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+}
+
+// Only initialize in browser environment
+if (typeof window !== 'undefined') {
+  initPdfWorker()
+}
 
 const selectedFiles = ref<File[]>([])
 const useZip = ref(true)
 const imageFormat = ref('png')
 const error = ref<string | null>(null)
 
-function handleFilesSelected(files: File[]) {
-  selectedFiles.value = files
+async function handleFilesSelected(files: File[]) {
+  error.value = null
+  selectedFiles.value = []
+
+  for (const file of files) {
+    try {
+      // Validate PDF file
+      const arrayBuffer = await file.arrayBuffer()
+      await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+      selectedFiles.value.push(file)
+    } catch (err) {
+      error.value = `Invalid PDF file: ${file.name}`
+      console.error('[PDF Converter] Invalid PDF file:', err)
+      return
+    }
+  }
 }
 
 function formatFileSize(bytes: number): string {
