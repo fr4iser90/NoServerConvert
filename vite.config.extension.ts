@@ -5,13 +5,13 @@ import { resolve } from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  root: 'src/web',
+  root: 'src/extensions',
   plugins: [
     vue(),
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src/web', import.meta.url)),
+      '@': fileURLToPath(new URL('./src/extensions', import.meta.url)),
       '@shared': fileURLToPath(new URL('./src/shared', import.meta.url))
     }
   },
@@ -19,8 +19,17 @@ export default defineConfig({
     exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util', 'pdfjs-dist']
   },
   build: {
+    outDir: 'dist/extensions',
     rollupOptions: {
+      input: {
+        popup: resolve(__dirname, 'src/extensions/popup.html'),
+        background: resolve(__dirname, 'src/extensions/background.ts'),
+        content: resolve(__dirname, 'src/extensions/content.ts')
+      },
       output: {
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name].[ext]',
         manualChunks: {
           pdfjs: ['pdfjs-dist']
         }
@@ -30,7 +39,6 @@ export default defineConfig({
   publicDir: 'public',
   server: {
     fs: {
-      // Allow serving files from one level up to the project root
       allow: ['..']
     }
   }

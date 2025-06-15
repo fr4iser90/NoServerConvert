@@ -4,9 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "npm run dev:web",
+    "dev:web": "BUILD_TARGET=web vite",
+    "dev:ext": "BUILD_TARGET=extensions vite",
+    "build": "npm run build:web && npm run build:ext",
+    "build:web": "BUILD_TARGET=web vite build",
+    "build:ext": "BUILD_TARGET=extensions vite build",
+    "preview": "npm run preview:web",
+    "preview:web": "BUILD_TARGET=web vite preview",
+    "preview:ext": "BUILD_TARGET=extensions vite preview",
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {

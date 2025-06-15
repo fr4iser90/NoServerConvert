@@ -79,8 +79,8 @@
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import FileUpload from '@/components/common/FileUpload.vue'
+import { useAppStore } from "@shared/stores/app"
+import FileUpload from "@/components/common/FileUpload.vue"
 import { PDFDocument } from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist'
 import JSZip from 'jszip'

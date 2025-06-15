@@ -6,27 +6,27 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with specific flags for latest versions
+# Install dependencies
 RUN npm install --no-package-lock
 
 # Copy project files
 COPY . .
 
 # Set production environment
-# You can override these in docker-compose.yml if needed
 ENV NODE_ENV=production
 ENV VITE_MODE=production
 
-# Ensure Vite is properly installed and build
-RUN npm rebuild vite && npm run build
+# Build only web version
+ENV BUILD_TARGET=web
+RUN npm run build:web
 
 # Production stage
-FROM nginx:alpine AS stage-1
+FROM nginx:alpine
 
-# Copy built files from build stage
-COPY --from=build-stage /app/dist /usr/share/nginx/html
+# Copy built web files
+COPY --from=build-stage /app/dist/web /usr/share/nginx/html
 
-# Copy nginx configuration to the correct location
+# Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80

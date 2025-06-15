@@ -1,14 +1,14 @@
 <template>
-  <div class="audio-converter">
-    <h1>Audio Converter</h1>
+  <div class="video-converter">
+    <h1>Video Converter</h1>
     
     <div class="converter-content">
       <FileUpload
-        accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac"
-        hint="Maximum file size: 100MB"
-        :max-size="100 * 1024 * 1024"
+        accept="video/*,.mp4,.webm,.avi,.mov,.mkv"
+        hint="Maximum file size: 500MB"
+        :max-size="500 * 1024 * 1024"
         :multiple="true"
-        :max-files="10"
+        :max-files="5"
         @file-selected="handleFileSelected"
         @error="handleError"
       />
@@ -20,37 +20,37 @@
           <button
             class="option-card"
             :disabled="appStore.isProcessing"
-            @click="convertToMp3"
+            @click="convertToMp4"
           >
-            <h3>Convert to MP3</h3>
-            <p>Convert audio to MP3 format</p>
+            <h3>Convert to MP4</h3>
+            <p>Convert video to MP4 format</p>
           </button>
 
           <button
             class="option-card"
             :disabled="appStore.isProcessing"
-            @click="convertToWav"
+            @click="convertToWebm"
           >
-            <h3>Convert to WAV</h3>
-            <p>Convert audio to WAV format</p>
+            <h3>Convert to WebM</h3>
+            <p>Convert video to WebM format</p>
           </button>
 
           <button
             class="option-card"
             :disabled="appStore.isProcessing"
-            @click="convertToOgg"
+            @click="extractAudio"
           >
-            <h3>Convert to OGG</h3>
-            <p>Convert audio to OGG format</p>
+            <h3>Extract Audio</h3>
+            <p>Extract audio from video</p>
           </button>
 
           <button
             class="option-card"
             :disabled="appStore.isProcessing"
-            @click="compressAudio"
+            @click="compressVideo"
           >
-            <h3>Compress Audio</h3>
-            <p>Reduce audio file size</p>
+            <h3>Compress Video</h3>
+            <p>Reduce video file size</p>
           </button>
         </div>
       </div>
@@ -62,7 +62,7 @@
       <div v-if="appStore.isProcessing" class="processing-overlay">
         <div class="processing-content">
           <div class="spinner"></div>
-          <p>Processing your audio...</p>
+          <p>Processing your video...</p>
         </div>
       </div>
     </div>
@@ -70,8 +70,8 @@
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import FileUpload from '@/components/common/FileUpload.vue'
+import { useAppStore } from "@shared/stores/app"
+import FileUpload from "@components/common/FileUpload.vue"
 import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
 
@@ -79,41 +79,41 @@ const appStore = useAppStore()
 const ffmpeg = new FFmpeg()
 
 function handleFileSelected(file: File) {
-  console.log('[Audio Converter] File selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB')
+  console.log('[Video Converter] File selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB')
   appStore.setCurrentFiles([file])
 }
 
 function handleError(message: string) {
-  console.error('[Audio Converter] Error:', message)
+  console.error('[Video Converter] Error:', message)
   appStore.setError(message)
 }
 
 // Initialize FFmpeg
 async function initFFmpeg() {
   if (ffmpeg.loaded) {
-    console.log('[Audio Converter] FFmpeg already loaded')
+    console.log('[Video Converter] FFmpeg already loaded')
     return
   }
 
   try {
-    console.log('[Audio Converter] Loading FFmpeg core...')
+    console.log('[Video Converter] Loading FFmpeg core...')
     // Load FFmpeg core
     await ffmpeg.load({
       coreURL: await toBlobURL(`/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`/ffmpeg-core.wasm`, 'application/wasm'),
     })
-    console.log('[Audio Converter] FFmpeg core loaded successfully')
+    console.log('[Video Converter] FFmpeg core loaded successfully')
   } catch (error) {
-    console.error('[Audio Converter] Failed to load FFmpeg:', error)
-    throw new Error('Failed to initialize audio converter')
+    console.error('[Video Converter] Failed to load FFmpeg:', error)
+    throw new Error('Failed to initialize video converter')
   }
 }
 
-async function convertAudio(format: string, options: string[] = []) {
+async function convertVideo(format: string, options: string[] = []) {
   if (!appStore.currentFiles[0]) return
 
   try {
-    console.log(`[Audio Converter] Starting conversion to ${format}...`)
+    console.log(`[Video Converter] Starting conversion to ${format}...`)
     appStore.setProcessing(true)
     appStore.setError(null)
 
@@ -123,26 +123,26 @@ async function convertAudio(format: string, options: string[] = []) {
     // Write input file to FFmpeg's virtual filesystem
     const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
     const outputFileName = 'output' + format
-    console.log('[Audio Converter] Writing input file to FFmpeg filesystem:', inputFileName)
+    console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
     await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
 
     // Run FFmpeg command
-    console.log('[Audio Converter] Running FFmpeg command with options:', options)
+    console.log('[Video Converter] Running FFmpeg command with options:', options)
     await ffmpeg.exec([
       '-i', inputFileName,
       ...options,
       outputFileName
     ])
-    console.log('[Audio Converter] FFmpeg command completed')
+    console.log('[Video Converter] FFmpeg command completed')
 
     // Read the output file
-    console.log('[Audio Converter] Reading output file...')
+    console.log('[Video Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
-    const blob = new Blob([data], { type: `audio/${format}` })
-    console.log('[Audio Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
+    const blob = new Blob([data], { type: `video/${format}` })
+    console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the converted file
-    console.log('[Audio Converter] Starting download...')
+    console.log('[Video Converter] Starting download...')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -151,41 +151,85 @@ async function convertAudio(format: string, options: string[] = []) {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    console.log('[Audio Converter] Download completed')
+    console.log('[Video Converter] Download completed')
 
   } catch (error) {
-    console.error('[Audio Converter] Conversion failed:', error)
+    console.error('[Video Converter] Conversion failed:', error)
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
   } finally {
     appStore.setProcessing(false)
   }
 }
 
-async function convertToMp3() {
-  console.log('[Audio Converter] Converting to MP3...')
-  await convertAudio('mp3', ['-codec:a', 'libmp3lame', '-qscale:a', '2'])
+async function convertToMp4() {
+  console.log('[Video Converter] Converting to MP4...')
+  await convertVideo('mp4', ['-c:v', 'libx264', '-c:a', 'aac'])
 }
 
-async function convertToWav() {
-  console.log('[Audio Converter] Converting to WAV...')
-  await convertAudio('wav', ['-codec:a', 'pcm_s16le'])
+async function convertToWebm() {
+  console.log('[Video Converter] Converting to WebM...')
+  await convertVideo('webm', ['-c:v', 'libvpx-vp9', '-c:a', 'libopus'])
 }
 
-async function convertToOgg() {
-  console.log('[Audio Converter] Converting to OGG...')
-  await convertAudio('ogg', ['-codec:a', 'libvorbis', '-qscale:a', '6'])
-}
-
-async function convertToAac() {
-  console.log('[Audio Converter] Converting to AAC...')
-  await convertAudio('aac', ['-codec:a', 'aac', '-b:a', '192k'])
-}
-
-async function compressAudio() {
+async function extractAudio() {
   if (!appStore.currentFiles[0]) return
 
   try {
-    console.log('[Audio Converter] Starting audio compression...')
+    console.log('[Video Converter] Starting audio extraction...')
+    appStore.setProcessing(true)
+    appStore.setError(null)
+
+    // Initialize FFmpeg if not already loaded
+    await initFFmpeg()
+
+    // Write input file to FFmpeg's virtual filesystem
+    const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
+    const outputFileName = 'output.mp3'
+    console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
+
+    // Extract audio
+    console.log('[Video Converter] Extracting audio...')
+    await ffmpeg.exec([
+      '-i', inputFileName,
+      '-vn', // No video
+      '-acodec', 'libmp3lame',
+      '-q:a', '2', // High quality
+      outputFileName
+    ])
+    console.log('[Video Converter] Audio extraction completed')
+
+    // Read the output file
+    console.log('[Video Converter] Reading output file...')
+    const data = await ffmpeg.readFile(outputFileName)
+    const blob = new Blob([data], { type: 'audio/mp3' })
+    console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
+    
+    // Download the extracted audio
+    console.log('[Video Converter] Starting download...')
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${appStore.currentFiles[0].name.split('.')[0]}.mp3`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    console.log('[Video Converter] Download completed')
+
+  } catch (error) {
+    console.error('[Video Converter] Audio extraction failed:', error)
+    appStore.setError(error instanceof Error ? error.message : 'Extraction failed')
+  } finally {
+    appStore.setProcessing(false)
+  }
+}
+
+async function compressVideo() {
+  if (!appStore.currentFiles[0]) return
+
+  try {
+    console.log('[Video Converter] Starting video compression...')
     appStore.setProcessing(true)
     appStore.setError(null)
 
@@ -195,28 +239,30 @@ async function compressAudio() {
     // Write input file to FFmpeg's virtual filesystem
     const inputFileName = 'input' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
     const outputFileName = 'output' + appStore.currentFiles[0].name.substring(appStore.currentFiles[0].name.lastIndexOf('.'))
-    console.log('[Audio Converter] Writing input file to FFmpeg filesystem:', inputFileName)
+    console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
     await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFiles[0]))
 
-    // Compress audio
-    console.log('[Audio Converter] Compressing audio...')
+    // Compress video
+    console.log('[Video Converter] Compressing video...')
     await ffmpeg.exec([
       '-i', inputFileName,
-      '-codec:a', 'libmp3lame',
-      '-qscale:a', '4', // Compression quality (2-5 is good, higher = more compression)
-      '-ar', '44100', // Sample rate
+      '-c:v', 'libx264',
+      '-crf', '28', // Compression factor (lower = better quality, higher = smaller file)
+      '-preset', 'medium', // Encoding speed preset
+      '-c:a', 'aac',
+      '-b:a', '128k', // Audio bitrate
       outputFileName
     ])
-    console.log('[Audio Converter] Audio compression completed')
+    console.log('[Video Converter] Video compression completed')
 
     // Read the output file
-    console.log('[Audio Converter] Reading output file...')
+    console.log('[Video Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
     const blob = new Blob([data], { type: appStore.currentFiles[0].type })
-    console.log('[Audio Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
+    console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the compressed file
-    console.log('[Audio Converter] Starting download...')
+    console.log('[Video Converter] Starting download...')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -225,10 +271,10 @@ async function compressAudio() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    console.log('[Audio Converter] Download completed')
+    console.log('[Video Converter] Download completed')
 
   } catch (error) {
-    console.error('[Audio Converter] Compression failed:', error)
+    console.error('[Video Converter] Compression failed:', error)
     appStore.setError(error instanceof Error ? error.message : 'Compression failed')
   } finally {
     appStore.setProcessing(false)
@@ -237,7 +283,7 @@ async function compressAudio() {
 </script>
 
 <style lang="scss" scoped>
-.audio-converter {
+.video-converter {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
