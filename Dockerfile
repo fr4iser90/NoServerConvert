@@ -13,6 +13,7 @@ RUN npm install --no-package-lock
 COPY . .
 
 # Set production environment
+# You can override these in docker-compose.yml if needed
 ENV NODE_ENV=production
 ENV VITE_MODE=production
 
@@ -25,7 +26,7 @@ FROM nginx:alpine AS stage-1
 # Copy built files from build stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration
+# Copy nginx configuration to the correct location
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
