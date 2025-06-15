@@ -1,28 +1,47 @@
 <template>
-  <div class="file-upload" :class="{ 'is-dragging': isDragging }">
-    <div
+  <div class="file-upload">
+    <div 
       class="upload-area"
-      @dragenter.prevent="isDragging = true"
-      @dragleave.prevent="isDragging = false"
+      :class="{ 'is-dragover': isDragover }"
+      @dragenter.prevent="isDragover = true"
+      @dragleave.prevent="isDragover = false"
       @dragover.prevent
       @drop.prevent="handleDrop"
     >
       <input
-        type="file"
         ref="fileInput"
-        class="file-input"
+        type="file"
         :accept="accept"
-        @change="handleFileSelect"
+        :multiple="multiple"
+        class="file-input"
+        @change="handleFileChange"
       />
       
       <div class="upload-content">
-        <div class="upload-icon">📁</div>
-        <h3>Drop files here</h3>
-        <p>or</p>
-        <button class="upload-button" @click="triggerFileInput">
-          Select Files
-        </button>
+        <div class="upload-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <p class="upload-text">
+          {{ multiple ? 'Dateien hier ablegen oder klicken zum Auswählen' : 'Datei hier ablegen oder klicken zum Auswählen' }}
+        </p>
         <p class="upload-hint">{{ hint }}</p>
+      </div>
+    </div>
+
+    <div v-if="selectedFiles.length > 0" class="selected-files">
+      <h3>Ausgewählte Dateien ({{ totalSize }} MB)</h3>
+      <div class="file-list">
+        <div v-for="(file, index) in selectedFiles" :key="index" class="file-item">
+          <span class="file-name">{{ file.name }}</span>
+          <span class="file-size">{{ formatFileSize(file.size) }}</span>
+          <button class="remove-file" @click="removeFile(index)" title="Datei entfernen">
+            ×
+          </button>
+        </div>
       </div>
     </div>
 
@@ -33,93 +52,122 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useAppStore } from '@/stores/app'
+import { ref, computed } from 'vue'
 
 const props = defineProps<{
   accept?: string
   hint?: string
   maxSize?: number // in bytes
+  multiple?: boolean
+  maxFiles?: number
 }>()
 
 const emit = defineEmits<{
-  (e: 'file-selected', file: File): void
+  (e: 'file-selected', files: File[]): void
   (e: 'error', message: string): void
 }>()
 
-const appStore = useAppStore()
 const fileInput = ref<HTMLInputElement | null>(null)
-const isDragging = ref(false)
-const error = ref<string | null>(null)
+const isDragover = ref(false)
+const selectedFiles = ref<File[]>([])
+const error = ref<string>('')
 
-function triggerFileInput() {
-  fileInput.value?.click()
+const totalSize = computed(() => {
+  const total = selectedFiles.value.reduce((sum, file) => sum + file.size, 0)
+  return (total / 1024 / 1024).toFixed(2)
+})
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-function validateFile(file: File): boolean {
-  if (props.maxSize && file.size > props.maxSize) {
-    error.value = `File size exceeds ${formatFileSize(props.maxSize)}`
+function validateFiles(files: File[]): File[] {
+  const validFiles: File[] = []
+  error.value = ''
+
+  // Prüfe maximale Anzahl von Dateien
+  if (props.maxFiles && files.length > props.maxFiles) {
+    error.value = `Maximal ${props.maxFiles} Dateien erlaubt`
     emit('error', error.value)
-    return false
+    return []
   }
 
-  if (props.accept) {
-    const acceptedTypes = props.accept.split(',').map(type => type.trim())
-    const fileType = file.type
-    const fileExtension = `.${file.name.split('.').pop()?.toLowerCase()}`
-
-    const isValidType = acceptedTypes.some(type => {
-      if (type.startsWith('.')) {
-        return fileExtension === type.toLowerCase()
-      }
-      return fileType.match(new RegExp(type.replace('*', '.*')))
-    })
-
-    if (!isValidType) {
-      error.value = 'Invalid file type'
+  // Prüfe jede Datei
+  for (const file of files) {
+    // Prüfe Dateigröße
+    if (props.maxSize && file.size > props.maxSize) {
+      error.value = `Datei "${file.name}" ist zu groß. Maximale Größe: ${formatFileSize(props.maxSize)}`
       emit('error', error.value)
-      return false
+      continue
     }
+
+    // Prüfe Dateityp
+    if (props.accept) {
+      const acceptedTypes = props.accept.split(',').map(type => type.trim())
+      const fileType = file.type
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
+
+      const isAccepted = acceptedTypes.some(type => {
+        if (type.startsWith('.')) {
+          return fileExtension === type.toLowerCase()
+        }
+        if (type.endsWith('/*')) {
+          const baseType = type.split('/')[0]
+          return fileType.startsWith(baseType + '/')
+        }
+        return fileType === type
+      })
+
+      if (!isAccepted) {
+        error.value = `Datei "${file.name}" hat ein nicht unterstütztes Format`
+        emit('error', error.value)
+        continue
+      }
+    }
+
+    validFiles.push(file)
   }
 
-  error.value = null
-  return true
+  return validFiles
 }
 
-function handleFileSelect(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+function handleFiles(files: FileList | File[]) {
+  const fileArray = Array.from(files)
+  const validFiles = validateFiles(fileArray)
   
-  if (file && validateFile(file)) {
-    appStore.setCurrentFile(file)
-    emit('file-selected', file)
+  if (validFiles.length > 0) {
+    if (props.multiple) {
+      selectedFiles.value = [...selectedFiles.value, ...validFiles]
+    } else {
+      selectedFiles.value = validFiles
+    }
+    emit('file-selected', selectedFiles.value)
   }
-  
-  // Reset input
+}
+
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.files) {
+    handleFiles(input.files)
+  }
+  // Reset input value to allow selecting the same file again
   input.value = ''
 }
 
 function handleDrop(event: DragEvent) {
-  isDragging.value = false
-  const file = event.dataTransfer?.files[0]
-  
-  if (file && validateFile(file)) {
-    appStore.setCurrentFile(file)
-    emit('file-selected', file)
+  isDragover.value = false
+  if (event.dataTransfer?.files) {
+    handleFiles(event.dataTransfer.files)
   }
 }
 
-function formatFileSize(bytes: number): string {
-  const units = ['B', 'KB', 'MB', 'GB']
-  let size = bytes
-  let unitIndex = 0
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024
-    unitIndex++
-  }
-
-  return `${Math.round(size * 100) / 100} ${units[unitIndex]}`
+function removeFile(index: number) {
+  selectedFiles.value.splice(index, 1)
+  emit('file-selected', selectedFiles.value)
 }
 </script>
 
@@ -131,20 +179,15 @@ function formatFileSize(bytes: number): string {
 }
 
 .upload-area {
-  border: 2px dashed #ccc;
+  border: 2px dashed #ddd;
   border-radius: 8px;
   padding: 2rem;
   text-align: center;
-  background: #fff;
-  transition: all 0.2s ease;
   cursor: pointer;
+  transition: all 0.2s;
+  background: #fafafa;
 
-  &:hover {
-    border-color: #42b883;
-    background: #f8f9fa;
-  }
-
-  &.is-dragging {
+  &:hover, &.is-dragover {
     border-color: #42b883;
     background: #f0f9f4;
   }
@@ -155,47 +198,90 @@ function formatFileSize(bytes: number): string {
 }
 
 .upload-content {
-  .upload-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-  }
-
-  h3 {
-    margin-bottom: 0.5rem;
-    color: #2c3e50;
-  }
-
-  p {
-    color: #666;
-    margin: 0.5rem 0;
-  }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
-.upload-button {
-  background: #42b883;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
+.upload-icon {
+  color: #42b883;
+  width: 48px;
+  height: 48px;
+}
 
-  &:hover {
-    background: #3aa876;
-  }
+.upload-text {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
 }
 
 .upload-hint {
+  margin: 0;
+  color: #666;
   font-size: 0.875rem;
-  color: #999;
-  margin-top: 1rem;
+}
+
+.selected-files {
+  margin-top: 1.5rem;
+
+  h3 {
+    margin: 0 0 0.5rem;
+    color: #2c3e50;
+    font-size: 1rem;
+  }
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.file-name {
+  flex: 1;
+  color: #2c3e50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-size {
+  color: #666;
+  white-space: nowrap;
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  color: #dc3545;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  line-height: 1;
+
+  &:hover {
+    color: #c82333;
+  }
 }
 
 .error-message {
-  color: #dc3545;
   margin-top: 1rem;
-  text-align: center;
+  padding: 0.75rem;
+  background: #fee;
+  color: #dc3545;
+  border-radius: 4px;
   font-size: 0.875rem;
+  text-align: center;
 }
 </style> 

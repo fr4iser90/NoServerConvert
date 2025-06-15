@@ -5,41 +5,61 @@
     <div class="converter-content">
       <FileUpload
         accept=".pdf"
-        hint="Maximum file size: 100MB"
+        hint="Maximal 10 Dateien, je 100MB"
         :max-size="100 * 1024 * 1024"
-        @file-selected="handleFileSelected"
+        :multiple="true"
+        :max-files="10"
+        @file-selected="handleFilesSelected"
         @error="handleError"
       />
 
-      <div v-if="appStore.currentFile" class="conversion-options">
+      <div v-if="appStore.currentFiles.length > 0" class="conversion-options">
         <h2>Conversion Options</h2>
         
         <div class="options-grid">
-          <button
-            class="option-card"
-            :disabled="appStore.isProcessing"
-            @click="convertToImage"
-          >
+          <div class="option-card">
             <h3>PDF to Image</h3>
             <p>Convert PDF pages to images</p>
-          </button>
+            <div class="conversion-settings">
+              <div class="setting-group">
+                <label>
+                  <input type="checkbox" v-model="useZip" />
+                  Alle Bilder in ZIP
+                </label>
+              </div>
+              <div class="setting-group">
+                <label>Bildformat:</label>
+                <select v-model="imageFormat">
+                  <option value="png">PNG</option>
+                  <option value="jpg">JPG</option>
+                </select>
+              </div>
+            </div>
+            <button
+              class="convert-button"
+              :disabled="appStore.isProcessing"
+              @click="convertAllToImage"
+            >
+              Alle konvertieren
+            </button>
+          </div>
 
           <button
             class="option-card"
             :disabled="appStore.isProcessing"
-            @click="convertToText"
+            @click="convertAllToText"
           >
             <h3>PDF to Text</h3>
-            <p>Extract text from PDF</p>
+            <p>Extract text from PDFs</p>
           </button>
 
           <button
             class="option-card"
             :disabled="appStore.isProcessing"
-            @click="convertToHtml"
+            @click="convertAllToHtml"
           >
             <h3>PDF to HTML</h3>
-            <p>Convert PDF to HTML format</p>
+            <p>Convert PDFs to HTML format</p>
           </button>
         </div>
       </div>
@@ -51,7 +71,7 @@
       <div v-if="appStore.isProcessing" class="processing-overlay">
         <div class="processing-content">
           <div class="spinner"></div>
-          <p>Processing your file...</p>
+          <p>Verarbeite {{ currentFileIndex + 1 }} von {{ appStore.currentFiles.length }} Dateien...</p>
         </div>
       </div>
     </div>
@@ -62,98 +82,306 @@
 import { useAppStore } from '@/stores/app'
 import FileUpload from '@/components/common/FileUpload.vue'
 import { PDFDocument } from 'pdf-lib'
+import * as pdfjsLib from 'pdfjs-dist'
+import JSZip from 'jszip'
+import { ref } from 'vue'
+
+// Initialize PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
 const appStore = useAppStore()
+const useZip = ref(true)
+const imageFormat = ref('png')
+const currentFileIndex = ref(0)
 
-function handleFileSelected(file: File) {
-  // File is already set in the store by FileUpload component
-  console.log('File selected:', file.name)
+function handleFilesSelected(files: File[]) {
+  console.log('[PDF Converter] Files selected:', files.length, 'files')
+  appStore.setCurrentFiles(files)
 }
 
 function handleError(message: string) {
+  console.error('[PDF Converter] Error:', message)
   appStore.setError(message)
 }
 
-async function convertToImage() {
-  if (!appStore.currentFile) return
+async function convertAllToImage() {
+  if (appStore.currentFiles.length === 0) return
 
   try {
+    console.log('[PDF Converter] Starting batch PDF to Image conversion...')
     appStore.setProcessing(true)
     appStore.setError(null)
 
-    // Read the PDF file
-    const arrayBuffer = await appStore.currentFile.arrayBuffer()
-    const pdfDoc = await PDFDocument.load(arrayBuffer)
-    
-    // Get the first page
-    const page = pdfDoc.getPages()[0]
-    const { width, height } = page.getSize()
+    const zip = new JSZip()
+    let hasProcessedFiles = false
 
-    // Create a canvas with the same dimensions as the PDF page
-    const canvas = document.createElement('canvas')
-    const scale = 2 // For better quality
-    canvas.width = width * scale
-    canvas.height = height * scale
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Could not get canvas context')
+    for (let fileIndex = 0; fileIndex < appStore.currentFiles.length; fileIndex++) {
+      currentFileIndex.value = fileIndex
+      const file = appStore.currentFiles[fileIndex]
+      console.log(`[PDF Converter] Processing file ${fileIndex + 1}/${appStore.currentFiles.length}: ${file.name}`)
 
-    // Convert PDF page to image
-    const pdfImage = await pdfDoc.saveAsBase64({ format: 'png' })
-    const img = new Image()
-    img.src = `data:image/png;base64,${pdfImage}`
-    
-    await new Promise((resolve, reject) => {
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        resolve(null)
-      }
-      img.onerror = reject
-    })
+      // Load the PDF file
+      console.log('[PDF Converter] Loading PDF file...')
+      const arrayBuffer = await file.arrayBuffer()
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+      console.log('[PDF Converter] PDF loaded, pages:', pdf.numPages)
 
-    // Convert canvas to blob and download
-    canvas.toBlob((blob) => {
-      if (!blob) throw new Error('Could not create image blob')
+      // Convert each page to image
+      console.log('[PDF Converter] Converting pages to images...')
       
-      const url = URL.createObjectURL(blob)
+      for (let i = 1; i <= pdf.numPages; i++) {
+        console.log(`[PDF Converter] Converting page ${i}/${pdf.numPages}...`)
+        const page = await pdf.getPage(i)
+        const viewport = page.getViewport({ scale: 2.0 })
+
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')
+        if (!context) throw new Error('Could not get canvas context')
+        
+        canvas.width = viewport.width
+        canvas.height = viewport.height
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise
+
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob)
+            else throw new Error('Could not create image blob')
+          }, `image/${imageFormat.value}`)
+        })
+
+        if (useZip.value) {
+          // Add to zip with file name prefix
+          const fileName = `${file.name.split('.')[0]}_page_${i}.${imageFormat.value}`
+          zip.file(fileName, blob)
+        } else {
+          // Download individual file
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${file.name.split('.')[0]}_page_${i}.${imageFormat.value}`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+        }
+      }
+      hasProcessedFiles = true
+    }
+
+    if (useZip.value && hasProcessedFiles) {
+      console.log('[PDF Converter] Creating zip file...')
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      console.log('[PDF Converter] Zip file size:', (zipBlob.size / 1024 / 1024).toFixed(2) + 'MB')
+
+      // Download the zip file
+      console.log('[PDF Converter] Starting download...')
+      const url = URL.createObjectURL(zipBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${appStore.currentFile?.name.replace('.pdf', '')}.png`
+      a.download = 'pdf_images.zip'
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-    }, 'image/png')
+      console.log('[PDF Converter] Download completed')
+    }
 
   } catch (error) {
+    console.error('[PDF Converter] Conversion failed:', error)
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
   } finally {
     appStore.setProcessing(false)
+    currentFileIndex.value = 0
   }
 }
 
-async function convertToText() {
+async function convertAllToText() {
+  if (appStore.currentFiles.length === 0) return
+
   try {
+    console.log('[PDF Converter] Starting batch PDF to Text conversion...')
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement PDF to text conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    const zip = new JSZip()
+    let hasProcessedFiles = false
+
+    for (let fileIndex = 0; fileIndex < appStore.currentFiles.length; fileIndex++) {
+      currentFileIndex.value = fileIndex
+      const file = appStore.currentFiles[fileIndex]
+      console.log(`[PDF Converter] Processing file ${fileIndex + 1}/${appStore.currentFiles.length}: ${file.name}`)
+
+      // Load the PDF file
+      console.log('[PDF Converter] Loading PDF file...')
+      const arrayBuffer = await file.arrayBuffer()
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+      console.log('[PDF Converter] PDF loaded, pages:', pdf.numPages)
+
+      // Extract text from each page
+      console.log('[PDF Converter] Extracting text from pages...')
+      let text = `=== ${file.name} ===\n\n`
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        console.log(`[PDF Converter] Extracting text from page ${i}/${pdf.numPages}...`)
+        const page = await pdf.getPage(i)
+        const content = await page.getTextContent()
+        const pageText = content.items
+          .map((item: any) => item.str)
+          .join(' ')
+        text += `Page ${i}\n${pageText}\n\n`
+      }
+
+      if (appStore.currentFiles.length === 1) {
+        // Single file - download directly
+        const blob = new Blob([text], { type: 'text/plain' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${file.name.split('.')[0]}.txt`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      } else {
+        // Multiple files - add to zip
+        zip.file(`${file.name.split('.')[0]}.txt`, text)
+      }
+      hasProcessedFiles = true
+    }
+
+    if (appStore.currentFiles.length > 1 && hasProcessedFiles) {
+      console.log('[PDF Converter] Creating zip file...')
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      console.log('[PDF Converter] Zip file size:', (zipBlob.size / 1024 / 1024).toFixed(2) + 'MB')
+
+      // Download the zip file
+      console.log('[PDF Converter] Starting download...')
+      const url = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'pdf_texts.zip'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      console.log('[PDF Converter] Download completed')
+    }
+
   } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
+    console.error('[PDF Converter] Text extraction failed:', error)
+    appStore.setError(error instanceof Error ? error.message : 'Text extraction failed')
   } finally {
     appStore.setProcessing(false)
+    currentFileIndex.value = 0
   }
 }
 
-async function convertToHtml() {
+async function convertAllToHtml() {
+  if (appStore.currentFiles.length === 0) return
+
   try {
+    console.log('[PDF Converter] Starting batch PDF to HTML conversion...')
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement PDF to HTML conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    const zip = new JSZip()
+    let hasProcessedFiles = false
+
+    for (let fileIndex = 0; fileIndex < appStore.currentFiles.length; fileIndex++) {
+      currentFileIndex.value = fileIndex
+      const file = appStore.currentFiles[fileIndex]
+      console.log(`[PDF Converter] Processing file ${fileIndex + 1}/${appStore.currentFiles.length}: ${file.name}`)
+
+      // Load the PDF file
+      console.log('[PDF Converter] Loading PDF file...')
+      const arrayBuffer = await file.arrayBuffer()
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+      console.log('[PDF Converter] PDF loaded, pages:', pdf.numPages)
+
+      // Convert each page to HTML
+      console.log('[PDF Converter] Converting pages to HTML...')
+      let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>${file.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; margin: 2rem; }
+            .page { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ddd; }
+            .page-number { color: #666; font-size: 0.8rem; }
+          </style>
+        </head>
+        <body>
+      `
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        console.log(`[PDF Converter] Converting page ${i}/${pdf.numPages} to HTML...`)
+        const page = await pdf.getPage(i)
+        const content = await page.getTextContent()
+        
+        html += `<div class="page">`
+        html += `<div class="page-number">Page ${i}</div>`
+        
+        const textContent = content.items
+          .map((item: any) => {
+            const style = item.transform ? `style="position: absolute; left: ${item.transform[4]}px; top: ${item.transform[5]}px;"` : ''
+            return `<span ${style}>${item.str}</span>`
+          })
+          .join('')
+        
+        html += textContent
+        html += `</div>`
+      }
+
+      html += `</body></html>`
+
+      if (appStore.currentFiles.length === 1) {
+        // Single file - download directly
+        const blob = new Blob([html], { type: 'text/html' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${file.name.split('.')[0]}.html`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      } else {
+        // Multiple files - add to zip
+        zip.file(`${file.name.split('.')[0]}.html`, html)
+      }
+      hasProcessedFiles = true
+    }
+
+    if (appStore.currentFiles.length > 1 && hasProcessedFiles) {
+      console.log('[PDF Converter] Creating zip file...')
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      console.log('[PDF Converter] Zip file size:', (zipBlob.size / 1024 / 1024).toFixed(2) + 'MB')
+
+      // Download the zip file
+      console.log('[PDF Converter] Starting download...')
+      const url = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'pdf_htmls.zip'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      console.log('[PDF Converter] Download completed')
+    }
+
   } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
+    console.error('[PDF Converter] HTML conversion failed:', error)
+    appStore.setError(error instanceof Error ? error.message : 'HTML conversion failed')
   } finally {
     appStore.setProcessing(false)
+    currentFileIndex.value = 0
   }
 }
 </script>
@@ -268,5 +496,52 @@ async function convertToHtml() {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.conversion-settings {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.setting-group {
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  label {
+    color: #666;
+    font-size: 0.875rem;
+  }
+
+  select {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    color: #2c3e50;
+  }
+}
+
+.convert-button {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.5rem;
+  background: #42b883;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover:not(:disabled) {
+    background: #3aa876;
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
 }
 </style> 

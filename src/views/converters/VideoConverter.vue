@@ -76,35 +76,41 @@ import { fetchFile, toBlobURL } from '@ffmpeg/util'
 const appStore = useAppStore()
 const ffmpeg = new FFmpeg()
 
+function handleFileSelected(file: File) {
+  console.log('[Video Converter] File selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB')
+}
+
+function handleError(message: string) {
+  console.error('[Video Converter] Error:', message)
+  appStore.setError(message)
+}
+
 // Initialize FFmpeg
 async function initFFmpeg() {
-  if (ffmpeg.loaded) return
+  if (ffmpeg.loaded) {
+    console.log('[Video Converter] FFmpeg already loaded')
+    return
+  }
 
   try {
+    console.log('[Video Converter] Loading FFmpeg core...')
     // Load FFmpeg core
     await ffmpeg.load({
       coreURL: await toBlobURL(`/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`/ffmpeg-core.wasm`, 'application/wasm'),
     })
+    console.log('[Video Converter] FFmpeg core loaded successfully')
   } catch (error) {
-    console.error('Failed to load FFmpeg:', error)
+    console.error('[Video Converter] Failed to load FFmpeg:', error)
     throw new Error('Failed to initialize video converter')
   }
-}
-
-function handleFileSelected(file: File) {
-  // File is already set in the store by FileUpload component
-  console.log('File selected:', file.name)
-}
-
-function handleError(message: string) {
-  appStore.setError(message)
 }
 
 async function convertVideo(format: string, options: string[] = []) {
   if (!appStore.currentFile) return
 
   try {
+    console.log(`[Video Converter] Starting conversion to ${format}...`)
     appStore.setProcessing(true)
     appStore.setError(null)
 
@@ -114,20 +120,26 @@ async function convertVideo(format: string, options: string[] = []) {
     // Write input file to FFmpeg's virtual filesystem
     const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
     const outputFileName = 'output' + format
+    console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
     await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
 
     // Run FFmpeg command
+    console.log('[Video Converter] Running FFmpeg command with options:', options)
     await ffmpeg.exec([
       '-i', inputFileName,
       ...options,
       outputFileName
     ])
+    console.log('[Video Converter] FFmpeg command completed')
 
     // Read the output file
+    console.log('[Video Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
     const blob = new Blob([data], { type: `video/${format}` })
+    console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the converted file
+    console.log('[Video Converter] Starting download...')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -136,8 +148,10 @@ async function convertVideo(format: string, options: string[] = []) {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    console.log('[Video Converter] Download completed')
 
   } catch (error) {
+    console.error('[Video Converter] Conversion failed:', error)
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
   } finally {
     appStore.setProcessing(false)
@@ -145,10 +159,12 @@ async function convertVideo(format: string, options: string[] = []) {
 }
 
 async function convertToMp4() {
+  console.log('[Video Converter] Converting to MP4...')
   await convertVideo('mp4', ['-c:v', 'libx264', '-c:a', 'aac'])
 }
 
 async function convertToWebm() {
+  console.log('[Video Converter] Converting to WebM...')
   await convertVideo('webm', ['-c:v', 'libvpx-vp9', '-c:a', 'libopus'])
 }
 
@@ -156,6 +172,7 @@ async function extractAudio() {
   if (!appStore.currentFile) return
 
   try {
+    console.log('[Video Converter] Starting audio extraction...')
     appStore.setProcessing(true)
     appStore.setError(null)
 
@@ -165,9 +182,11 @@ async function extractAudio() {
     // Write input file to FFmpeg's virtual filesystem
     const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
     const outputFileName = 'output.mp3'
+    console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
     await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
 
     // Extract audio
+    console.log('[Video Converter] Extracting audio...')
     await ffmpeg.exec([
       '-i', inputFileName,
       '-vn', // No video
@@ -175,12 +194,16 @@ async function extractAudio() {
       '-q:a', '2', // High quality
       outputFileName
     ])
+    console.log('[Video Converter] Audio extraction completed')
 
     // Read the output file
+    console.log('[Video Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
     const blob = new Blob([data], { type: 'audio/mp3' })
+    console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the extracted audio
+    console.log('[Video Converter] Starting download...')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -189,8 +212,10 @@ async function extractAudio() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    console.log('[Video Converter] Download completed')
 
   } catch (error) {
+    console.error('[Video Converter] Audio extraction failed:', error)
     appStore.setError(error instanceof Error ? error.message : 'Extraction failed')
   } finally {
     appStore.setProcessing(false)
@@ -201,6 +226,7 @@ async function compressVideo() {
   if (!appStore.currentFile) return
 
   try {
+    console.log('[Video Converter] Starting video compression...')
     appStore.setProcessing(true)
     appStore.setError(null)
 
@@ -210,9 +236,11 @@ async function compressVideo() {
     // Write input file to FFmpeg's virtual filesystem
     const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
     const outputFileName = 'output' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    console.log('[Video Converter] Writing input file to FFmpeg filesystem:', inputFileName)
     await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
 
     // Compress video
+    console.log('[Video Converter] Compressing video...')
     await ffmpeg.exec([
       '-i', inputFileName,
       '-c:v', 'libx264',
@@ -222,12 +250,16 @@ async function compressVideo() {
       '-b:a', '128k', // Audio bitrate
       outputFileName
     ])
+    console.log('[Video Converter] Video compression completed')
 
     // Read the output file
+    console.log('[Video Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
     const blob = new Blob([data], { type: appStore.currentFile.type })
+    console.log('[Video Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the compressed file
+    console.log('[Video Converter] Starting download...')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -236,8 +268,10 @@ async function compressVideo() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    console.log('[Video Converter] Download completed')
 
   } catch (error) {
+    console.error('[Video Converter] Compression failed:', error)
     appStore.setError(error instanceof Error ? error.message : 'Compression failed')
   } finally {
     appStore.setProcessing(false)

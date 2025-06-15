@@ -76,35 +76,41 @@ import { fetchFile, toBlobURL } from '@ffmpeg/util'
 const appStore = useAppStore()
 const ffmpeg = new FFmpeg()
 
+function handleFileSelected(file: File) {
+  console.log('[Audio Converter] File selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB')
+}
+
+function handleError(message: string) {
+  console.error('[Audio Converter] Error:', message)
+  appStore.setError(message)
+}
+
 // Initialize FFmpeg
 async function initFFmpeg() {
-  if (ffmpeg.loaded) return
+  if (ffmpeg.loaded) {
+    console.log('[Audio Converter] FFmpeg already loaded')
+    return
+  }
 
   try {
+    console.log('[Audio Converter] Loading FFmpeg core...')
     // Load FFmpeg core
     await ffmpeg.load({
       coreURL: await toBlobURL(`/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`/ffmpeg-core.wasm`, 'application/wasm'),
     })
+    console.log('[Audio Converter] FFmpeg core loaded successfully')
   } catch (error) {
-    console.error('Failed to load FFmpeg:', error)
+    console.error('[Audio Converter] Failed to load FFmpeg:', error)
     throw new Error('Failed to initialize audio converter')
   }
-}
-
-function handleFileSelected(file: File) {
-  // File is already set in the store by FileUpload component
-  console.log('File selected:', file.name)
-}
-
-function handleError(message: string) {
-  appStore.setError(message)
 }
 
 async function convertAudio(format: string, options: string[] = []) {
   if (!appStore.currentFile) return
 
   try {
+    console.log(`[Audio Converter] Starting conversion to ${format}...`)
     appStore.setProcessing(true)
     appStore.setError(null)
 
@@ -114,20 +120,26 @@ async function convertAudio(format: string, options: string[] = []) {
     // Write input file to FFmpeg's virtual filesystem
     const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
     const outputFileName = 'output' + format
+    console.log('[Audio Converter] Writing input file to FFmpeg filesystem:', inputFileName)
     await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
 
     // Run FFmpeg command
+    console.log('[Audio Converter] Running FFmpeg command with options:', options)
     await ffmpeg.exec([
       '-i', inputFileName,
       ...options,
       outputFileName
     ])
+    console.log('[Audio Converter] FFmpeg command completed')
 
     // Read the output file
+    console.log('[Audio Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
     const blob = new Blob([data], { type: `audio/${format}` })
+    console.log('[Audio Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the converted file
+    console.log('[Audio Converter] Starting download...')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -136,8 +148,10 @@ async function convertAudio(format: string, options: string[] = []) {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    console.log('[Audio Converter] Download completed')
 
   } catch (error) {
+    console.error('[Audio Converter] Conversion failed:', error)
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
   } finally {
     appStore.setProcessing(false)
@@ -145,18 +159,22 @@ async function convertAudio(format: string, options: string[] = []) {
 }
 
 async function convertToMp3() {
+  console.log('[Audio Converter] Converting to MP3...')
   await convertAudio('mp3', ['-codec:a', 'libmp3lame', '-qscale:a', '2'])
 }
 
 async function convertToWav() {
+  console.log('[Audio Converter] Converting to WAV...')
   await convertAudio('wav', ['-codec:a', 'pcm_s16le'])
 }
 
 async function convertToOgg() {
+  console.log('[Audio Converter] Converting to OGG...')
   await convertAudio('ogg', ['-codec:a', 'libvorbis', '-qscale:a', '6'])
 }
 
 async function convertToAac() {
+  console.log('[Audio Converter] Converting to AAC...')
   await convertAudio('aac', ['-codec:a', 'aac', '-b:a', '192k'])
 }
 
@@ -164,6 +182,7 @@ async function compressAudio() {
   if (!appStore.currentFile) return
 
   try {
+    console.log('[Audio Converter] Starting audio compression...')
     appStore.setProcessing(true)
     appStore.setError(null)
 
@@ -173,9 +192,11 @@ async function compressAudio() {
     // Write input file to FFmpeg's virtual filesystem
     const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
     const outputFileName = 'output' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    console.log('[Audio Converter] Writing input file to FFmpeg filesystem:', inputFileName)
     await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
 
     // Compress audio
+    console.log('[Audio Converter] Compressing audio...')
     await ffmpeg.exec([
       '-i', inputFileName,
       '-codec:a', 'libmp3lame',
@@ -183,12 +204,16 @@ async function compressAudio() {
       '-ar', '44100', // Sample rate
       outputFileName
     ])
+    console.log('[Audio Converter] Audio compression completed')
 
     // Read the output file
+    console.log('[Audio Converter] Reading output file...')
     const data = await ffmpeg.readFile(outputFileName)
     const blob = new Blob([data], { type: appStore.currentFile.type })
+    console.log('[Audio Converter] Output file size:', (blob.size / 1024 / 1024).toFixed(2) + 'MB')
     
     // Download the compressed file
+    console.log('[Audio Converter] Starting download...')
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -197,8 +222,10 @@ async function compressAudio() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    console.log('[Audio Converter] Download completed')
 
   } catch (error) {
+    console.error('[Audio Converter] Compression failed:', error)
     appStore.setError(error instanceof Error ? error.message : 'Compression failed')
   } finally {
     appStore.setProcessing(false)
