@@ -70,8 +70,27 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
 import FileUpload from '@/components/common/FileUpload.vue'
+import { FFmpeg } from '@ffmpeg/ffmpeg'
+import { fetchFile, toBlobURL } from '@ffmpeg/util'
 
 const appStore = useAppStore()
+const ffmpeg = new FFmpeg()
+
+// Initialize FFmpeg
+async function initFFmpeg() {
+  if (ffmpeg.loaded) return
+
+  try {
+    // Load FFmpeg core
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`/ffmpeg-core.wasm`, 'application/wasm'),
+    })
+  } catch (error) {
+    console.error('Failed to load FFmpeg:', error)
+    throw new Error('Failed to initialize audio converter')
+  }
+}
 
 function handleFileSelected(file: File) {
   // File is already set in the store by FileUpload component
@@ -82,51 +101,103 @@ function handleError(message: string) {
   appStore.setError(message)
 }
 
-async function convertToMp3() {
+async function convertAudio(format: string, options: string[] = []) {
+  if (!appStore.currentFile) return
+
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement MP3 conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    // Initialize FFmpeg if not already loaded
+    await initFFmpeg()
+
+    // Write input file to FFmpeg's virtual filesystem
+    const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    const outputFileName = 'output' + format
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
+
+    // Run FFmpeg command
+    await ffmpeg.exec([
+      '-i', inputFileName,
+      ...options,
+      outputFileName
+    ])
+
+    // Read the output file
+    const data = await ffmpeg.readFile(outputFileName)
+    const blob = new Blob([data], { type: `audio/${format}` })
+    
+    // Download the converted file
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${appStore.currentFile.name.split('.')[0]}.${format}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
   } finally {
     appStore.setProcessing(false)
   }
+}
+
+async function convertToMp3() {
+  await convertAudio('mp3', ['-codec:a', 'libmp3lame', '-qscale:a', '2'])
 }
 
 async function convertToWav() {
-  try {
-    appStore.setProcessing(true)
-    appStore.setError(null)
-    // TODO: Implement WAV conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
-  } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
-  } finally {
-    appStore.setProcessing(false)
-  }
+  await convertAudio('wav', ['-codec:a', 'pcm_s16le'])
 }
 
 async function convertToOgg() {
-  try {
-    appStore.setProcessing(true)
-    appStore.setError(null)
-    // TODO: Implement OGG conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
-  } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
-  } finally {
-    appStore.setProcessing(false)
-  }
+  await convertAudio('ogg', ['-codec:a', 'libvorbis', '-qscale:a', '6'])
+}
+
+async function convertToAac() {
+  await convertAudio('aac', ['-codec:a', 'aac', '-b:a', '192k'])
 }
 
 async function compressAudio() {
+  if (!appStore.currentFile) return
+
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement audio compression
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    // Initialize FFmpeg if not already loaded
+    await initFFmpeg()
+
+    // Write input file to FFmpeg's virtual filesystem
+    const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    const outputFileName = 'output' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
+
+    // Compress audio
+    await ffmpeg.exec([
+      '-i', inputFileName,
+      '-codec:a', 'libmp3lame',
+      '-qscale:a', '4', // Compression quality (2-5 is good, higher = more compression)
+      '-ar', '44100', // Sample rate
+      outputFileName
+    ])
+
+    // Read the output file
+    const data = await ffmpeg.readFile(outputFileName)
+    const blob = new Blob([data], { type: appStore.currentFile.type })
+    
+    // Download the compressed file
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `compressed_${appStore.currentFile.name}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Compression failed')
   } finally {

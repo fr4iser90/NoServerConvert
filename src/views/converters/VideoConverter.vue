@@ -70,8 +70,27 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
 import FileUpload from '@/components/common/FileUpload.vue'
+import { FFmpeg } from '@ffmpeg/ffmpeg'
+import { fetchFile, toBlobURL } from '@ffmpeg/util'
 
 const appStore = useAppStore()
+const ffmpeg = new FFmpeg()
+
+// Initialize FFmpeg
+async function initFFmpeg() {
+  if (ffmpeg.loaded) return
+
+  try {
+    // Load FFmpeg core
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`/ffmpeg-core.wasm`, 'application/wasm'),
+    })
+  } catch (error) {
+    console.error('Failed to load FFmpeg:', error)
+    throw new Error('Failed to initialize video converter')
+  }
+}
 
 function handleFileSelected(file: File) {
   // File is already set in the store by FileUpload component
@@ -82,38 +101,95 @@ function handleError(message: string) {
   appStore.setError(message)
 }
 
-async function convertToMp4() {
+async function convertVideo(format: string, options: string[] = []) {
+  if (!appStore.currentFile) return
+
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement MP4 conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    // Initialize FFmpeg if not already loaded
+    await initFFmpeg()
+
+    // Write input file to FFmpeg's virtual filesystem
+    const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    const outputFileName = 'output' + format
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
+
+    // Run FFmpeg command
+    await ffmpeg.exec([
+      '-i', inputFileName,
+      ...options,
+      outputFileName
+    ])
+
+    // Read the output file
+    const data = await ffmpeg.readFile(outputFileName)
+    const blob = new Blob([data], { type: `video/${format}` })
+    
+    // Download the converted file
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${appStore.currentFile.name.split('.')[0]}.${format}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
   } finally {
     appStore.setProcessing(false)
   }
+}
+
+async function convertToMp4() {
+  await convertVideo('mp4', ['-c:v', 'libx264', '-c:a', 'aac'])
 }
 
 async function convertToWebm() {
-  try {
-    appStore.setProcessing(true)
-    appStore.setError(null)
-    // TODO: Implement WebM conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
-  } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
-  } finally {
-    appStore.setProcessing(false)
-  }
+  await convertVideo('webm', ['-c:v', 'libvpx-vp9', '-c:a', 'libopus'])
 }
 
 async function extractAudio() {
+  if (!appStore.currentFile) return
+
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement audio extraction
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    // Initialize FFmpeg if not already loaded
+    await initFFmpeg()
+
+    // Write input file to FFmpeg's virtual filesystem
+    const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    const outputFileName = 'output.mp3'
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
+
+    // Extract audio
+    await ffmpeg.exec([
+      '-i', inputFileName,
+      '-vn', // No video
+      '-acodec', 'libmp3lame',
+      '-q:a', '2', // High quality
+      outputFileName
+    ])
+
+    // Read the output file
+    const data = await ffmpeg.readFile(outputFileName)
+    const blob = new Blob([data], { type: 'audio/mp3' })
+    
+    // Download the extracted audio
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${appStore.currentFile.name.split('.')[0]}.mp3`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Extraction failed')
   } finally {
@@ -122,11 +198,45 @@ async function extractAudio() {
 }
 
 async function compressVideo() {
+  if (!appStore.currentFile) return
+
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement video compression
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    // Initialize FFmpeg if not already loaded
+    await initFFmpeg()
+
+    // Write input file to FFmpeg's virtual filesystem
+    const inputFileName = 'input' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    const outputFileName = 'output' + appStore.currentFile.name.substring(appStore.currentFile.name.lastIndexOf('.'))
+    await ffmpeg.writeFile(inputFileName, await fetchFile(appStore.currentFile))
+
+    // Compress video
+    await ffmpeg.exec([
+      '-i', inputFileName,
+      '-c:v', 'libx264',
+      '-crf', '28', // Compression factor (lower = better quality, higher = smaller file)
+      '-preset', 'medium', // Encoding speed preset
+      '-c:a', 'aac',
+      '-b:a', '128k', // Audio bitrate
+      outputFileName
+    ])
+
+    // Read the output file
+    const data = await ffmpeg.readFile(outputFileName)
+    const blob = new Blob([data], { type: appStore.currentFile.type })
+    
+    // Download the compressed file
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `compressed_${appStore.currentFile.name}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Compression failed')
   } finally {

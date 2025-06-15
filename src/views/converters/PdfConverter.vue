@@ -61,6 +61,7 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
 import FileUpload from '@/components/common/FileUpload.vue'
+import { PDFDocument } from 'pdf-lib'
 
 const appStore = useAppStore()
 
@@ -74,11 +75,55 @@ function handleError(message: string) {
 }
 
 async function convertToImage() {
+  if (!appStore.currentFile) return
+
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement PDF to image conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    // Read the PDF file
+    const arrayBuffer = await appStore.currentFile.arrayBuffer()
+    const pdfDoc = await PDFDocument.load(arrayBuffer)
+    
+    // Get the first page
+    const page = pdfDoc.getPages()[0]
+    const { width, height } = page.getSize()
+
+    // Create a canvas with the same dimensions as the PDF page
+    const canvas = document.createElement('canvas')
+    const scale = 2 // For better quality
+    canvas.width = width * scale
+    canvas.height = height * scale
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Could not get canvas context')
+
+    // Convert PDF page to image
+    const pdfImage = await pdfDoc.saveAsBase64({ format: 'png' })
+    const img = new Image()
+    img.src = `data:image/png;base64,${pdfImage}`
+    
+    await new Promise((resolve, reject) => {
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(null)
+      }
+      img.onerror = reject
+    })
+
+    // Convert canvas to blob and download
+    canvas.toBlob((blob) => {
+      if (!blob) throw new Error('Could not create image blob')
+      
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${appStore.currentFile?.name.replace('.pdf', '')}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }, 'image/png')
+
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
   } finally {

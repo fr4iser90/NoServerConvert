@@ -82,51 +82,125 @@ function handleError(message: string) {
   appStore.setError(message)
 }
 
-async function convertToJpg() {
+async function convertImage(format: string, quality?: number) {
+  if (!appStore.currentFile) return
+
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement JPG conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    // Create an image element
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(appStore.currentFile)
+    
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+      img.src = objectUrl
+    })
+
+    // Create canvas with image dimensions
+    const canvas = document.createElement('canvas')
+    canvas.width = img.width
+    canvas.height = img.height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Could not get canvas context')
+
+    // Draw image on canvas
+    ctx.drawImage(img, 0, 0)
+    URL.revokeObjectURL(objectUrl)
+
+    // Convert to blob and download
+    canvas.toBlob((blob) => {
+      if (!blob) throw new Error('Could not create image blob')
+      
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const extension = format === 'image/jpeg' ? 'jpg' : format.split('/')[1]
+      a.download = `${appStore.currentFile?.name.split('.')[0]}.${extension}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }, format, quality)
+
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
   } finally {
     appStore.setProcessing(false)
   }
+}
+
+async function convertToJpg() {
+  await convertImage('image/jpeg', 0.9)
 }
 
 async function convertToPng() {
-  try {
-    appStore.setProcessing(true)
-    appStore.setError(null)
-    // TODO: Implement PNG conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
-  } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
-  } finally {
-    appStore.setProcessing(false)
-  }
+  await convertImage('image/png')
 }
 
 async function convertToWebp() {
-  try {
-    appStore.setProcessing(true)
-    appStore.setError(null)
-    // TODO: Implement WebP conversion
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
-  } catch (error) {
-    appStore.setError(error instanceof Error ? error.message : 'Conversion failed')
-  } finally {
-    appStore.setProcessing(false)
-  }
+  await convertImage('image/webp', 0.9)
 }
 
 async function compressImage() {
+  if (!appStore.currentFile) return
+
   try {
     appStore.setProcessing(true)
     appStore.setError(null)
-    // TODO: Implement image compression
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Placeholder
+
+    // Create an image element
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(appStore.currentFile)
+    
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+      img.src = objectUrl
+    })
+
+    // Create canvas with image dimensions
+    const canvas = document.createElement('canvas')
+    const maxDimension = 1920 // Max width/height
+    let width = img.width
+    let height = img.height
+
+    // Scale down if image is too large
+    if (width > maxDimension || height > maxDimension) {
+      if (width > height) {
+        height = (height * maxDimension) / width
+        width = maxDimension
+      } else {
+        width = (width * maxDimension) / height
+        height = maxDimension
+      }
+    }
+
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Could not get canvas context')
+
+    // Draw image on canvas with new dimensions
+    ctx.drawImage(img, 0, 0, width, height)
+    URL.revokeObjectURL(objectUrl)
+
+    // Convert to blob and download with compression
+    canvas.toBlob((blob) => {
+      if (!blob) throw new Error('Could not create image blob')
+      
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `compressed_${appStore.currentFile?.name}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }, appStore.currentFile.type, 0.8) // 80% quality
+
   } catch (error) {
     appStore.setError(error instanceof Error ? error.message : 'Compression failed')
   } finally {
