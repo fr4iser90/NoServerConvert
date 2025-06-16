@@ -10,6 +10,7 @@
           <div class="setting-group">
             <label>Quality:</label>
             <select v-model="imageStore.imageQuality">
+              <option :value="1.0">Maximum (100%)</option>
               <option :value="0.9">High (90%)</option>
               <option :value="0.8">Medium (80%)</option>
               <option :value="0.7">Low (70%)</option>
@@ -44,6 +45,7 @@
           <div class="setting-group">
             <label>Quality:</label>
             <select v-model="imageStore.imageQuality">
+              <option :value="1.0">Maximum (100%)</option>
               <option :value="0.9">High (90%)</option>
               <option :value="0.8">Medium (80%)</option>
               <option :value="0.7">Low (70%)</option>

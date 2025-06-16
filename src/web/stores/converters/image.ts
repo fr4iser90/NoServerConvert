@@ -17,7 +17,7 @@ export const useImageStore = defineStore('image-converter', {
     error: null,
     isProcessing: false,
     imageFormat: 'png',
-    imageQuality: 0.9
+    imageQuality: 1.0
   }),
 
   actions: {
