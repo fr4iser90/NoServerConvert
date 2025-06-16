@@ -2,43 +2,50 @@
 
 ## Documentation Structure
 
-```
-doc/
-├── planning/                 # Project planning and strategy
-│   ├── roadmap.md           # High-level project roadmap
-│   ├── features.md          # Feature planning and specifications
-│   ├── architecture/        # Architecture planning
-│   │   ├── overview.md     # System architecture overview
-│   │   ├── frontend.md     # Frontend architecture
-│   │   └── converters.md   # Converter architecture
-│   └── milestones.md       # Project milestones and deadlines
-│
-├── development/             # Developer documentation
-│   ├── setup.md            # Development setup guide
-│   ├── architecture.md     # Current architecture
-│   ├── converters/         # Converter implementation
-│   │   ├── readme.md      # Converter overview
-│   │   ├── roadmap.md     # Converter roadmap
-│   │   └── templates/     # Converter templates
-│   ├── components/         # Component documentation
-│   ├── testing/           # Testing guidelines
-│   └── deployment/        # Deployment guides
-│
-├── user/                   # User documentation
-│   ├── getting-started.md # Quick start guide
-│   ├── features.md        # Feature documentation
-│   ├── faq.md            # Frequently asked questions
-│   └── guides/           # User guides
-│       ├── pdf.md        # PDF converter guide
-│       ├── image.md      # Image converter guide
-│       ├── audio.md      # Audio converter guide
-│       └── video.md      # Video converter guide
-│
-└── assets/                # Documentation assets
-    ├── diagrams/         # Architecture diagrams
-    ├── icons/           # Documentation icons
-    └── screenshots/     # Application screenshots
-```
+### Root Documentation
+- `LICENSE` - MIT License (in root directory)
+- `CONTRIBUTING.md` - Contributing guidelines (in root directory)
+- `README.md` - Project overview (in root directory)
+
+### User Documentation (`doc/user/`)
+- `getting-started.md` - Quick start guide
+- `privacy.md` - Privacy policy and data handling
+- `guides/` - Format-specific guides
+  - `pdf.md` - PDF conversion guide
+  - `image.md` - Image conversion guide
+  - `audio.md` - Audio conversion guide
+  - `video.md` - Video conversion guide
+
+### Development Documentation (`doc/development/`)
+- `api/` - API Documentation
+  - `converters.md` - Converter API reference
+  - `stores.md` - Store API reference
+  - `components.md` - Component API reference
+  - `types.md` - Type definitions
+- `testing/` - Testing Documentation
+  - `setup.md` - Testing setup guide
+  - `unit.md` - Unit testing guide
+  - `component.md` - Component testing guide
+  - `e2e.md` - End-to-end testing guide
+  - `coverage.md` - Test coverage requirements
+
+### Planning Documentation (`doc/planning/`)
+- `architecture/` - Technical architecture
+  - `overview.md` - System overview
+  - `converters.md` - Converter architecture
+  - `web.md` - Web application architecture
+  - `extension.md` - Browser extension architecture
+  - `queue.md` - Queue system design
+- `security.md` - Security concept
+- `features.md` - Feature specifications
+- `roadmap.md` - Development roadmap
+- `templates/` - Implementation templates
+  - `converter_implementation.md` - Template for new converters
+
+### Assets (`doc/assets/`)
+- `diagrams/` - Architecture diagrams
+- `icons/` - Documentation icons
+- `screenshots/` - Application screenshots
 
 ## Documentation Sections
 
@@ -93,11 +100,22 @@ doc/
 
 ## Contributing to Documentation
 
-1. Follow the structure
-2. Use templates
-3. Add screenshots
-4. Update index
-5. Review changes
+### Guidelines
+- Keep documentation up to date with code changes
+- Use clear, simple language
+- Include examples where helpful
+- Update screenshots for UI changes
+- Follow the existing structure
+
+### License
+This project is licensed under the MIT License - see the LICENSE file in the root directory for details.
+
+### Contributing
+For contribution guidelines, please see CONTRIBUTING.md in the root directory.
+
+## Missing Documentation
+- API documentation (in progress)
+- Testing documentation (in progress)
 
 ## Tools
 

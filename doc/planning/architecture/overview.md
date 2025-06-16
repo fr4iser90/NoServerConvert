@@ -263,4 +263,60 @@ src/
 - Format detection
 - Preview system
 - Custom workflows
-- Advanced options 
+- Advanced options
+
+## Core Technologies
+
+### Frontend Framework
+- Vue 3 with TypeScript
+- Vite as build tool
+- Pinia for state management
+
+### File Processing Libraries
+- **PDF Processing**
+  - PDF.js for PDF operations
+  - Web Workers for background processing
+  - Canvas API for PDF to image conversion
+
+- **Media Processing**
+  - FFmpeg.wasm for audio/video
+  - Canvas API for images
+  - Web Audio API for audio processing
+
+### Browser Technologies
+- WebAssembly for performance
+- Web Workers for parallel processing
+- File System Access API
+- IndexedDB for temporary storage
+
+## Development Setup
+
+### Prerequisites
+- Node.js (latest LTS)
+- Modern browser with WebAssembly support
+- Git
+
+### Installation
+```bash
+# Clone repository
+git clone https://github.com/fr4iser/NoServerConvert.git
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### Development Guidelines
+- Follow TypeScript best practices
+- Use Vue 3 Composition API
+- Implement proper error handling
+- Add tests for new features
+- Document code changes 

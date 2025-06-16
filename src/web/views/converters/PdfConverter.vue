@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import FileUpload from '@web/components/common/FileUpload.vue'
 import FileList from '@web/components/common/FileList.vue'
-import ConversionOptions from '@/web/components/converters/document/pdf/ConversionOptions.vue'
+import ConversionOptions from '@web/components/converters/document/pdf/ConversionOptions.vue'
 import { usePdfStore } from '@shared/converters/modules/document/pdf/PdfConverter'
 
 const pdfStore = usePdfStore()
