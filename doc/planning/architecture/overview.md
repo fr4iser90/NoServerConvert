@@ -4,59 +4,179 @@
 ```
 src/
 ├── shared/                    # Shared code between web and extensions
-│   ├── converters/           # Core converter logic (see converters.md)
-│   ├── stores/              # Shared state management
-│   ├── types/               # Common type definitions
-│   └── utils/               # Shared utilities
+│   ├── converters/           # Core converter logic
+│   │   ├── core/            # Base framework
+│   │   │   ├── base/       # Base converter classes
+│   │   │   ├── types/      # Common type definitions
+│   │   │   └── utils/      # Shared utilities
+│   │   └── modules/        # Format-specific converters
+│   │       ├── document/   # Document converters
+│   │       ├── image/      # Image converters
+│   │       ├── audio/      # Audio converters
+│   │       └── video/      # Video converters
+│   ├── types/              # Common type definitions
+│   └── utils/              # Shared utilities
 │
 ├── web/                      # Web application
 │   ├── components/          # Web-specific components
-│   │   ├── common/         # Shared components
+│   │   ├── common/         # Shared web components
 │   │   │   ├── FileUpload.vue
 │   │   │   ├── ProgressBar.vue
 │   │   │   └── ErrorDisplay.vue
-│   │   └── converters/     # Converter components
-│   │       ├── document/
-│   │       ├── image/
-│   │       ├── audio/
-│   │       └── video/
-│   ├── views/               # Web pages
+│   │   └── converters/     # Converter-specific components
+│   │       ├── document/   # Document converter components
+│   │       ├── image/      # Image converter components
+│   │       ├── audio/      # Audio converter components
+│   │       └── video/      # Video converter components
+│   ├── stores/             # Web-specific state management
+│   │   ├── app.ts         # App state
+│   │   └── converters/    # Converter stores
+│   │       ├── pdf.ts     # PDF converter store
+│   │       ├── image.ts   # Image converter store
+│   │       └── ...
+│   ├── views/              # Web pages
 │   │   ├── Home.vue
-│   │   ├── converters/
-│   │   └── About.vue
-│   ├── assets/              # Web assets
-│   └── main.ts              # Web entry point
+│   │   └── converters/    # Converter views
+│   │       ├── PdfConverter.vue
+│   │       ├── ImageConverter.vue
+│   │       └── ...
+│   └── main.ts             # Web entry point
 │
-├── extensions/              # Browser extensions
-│   ├── common/             # Shared extension code
-│   │   ├── popup/         # Extension popup UI
-│   │   │   ├── App.vue
-│   │   │   └── components/
-│   │   └── content/       # Content scripts
-│   │       ├── inject.ts
-│   │       └── handlers/
-│   ├── chrome/            # Chrome-specific
-│   │   └── manifest.json
-│   ├── firefox/           # Firefox-specific
-│   │   └── manifest.json
-│   └── edge/              # Edge-specific
-│       └── manifest.json
-│
-└── build/                  # Build configuration
-    ├── web/               # Web build setup
-    │   ├── vite.config.ts
-    │   └── env.ts
-    └── extensions/        # Extension build setup
-        ├── manifest.ts
-        └── config/
+└── extension/              # Browser extensions
+    ├── popup/             # Extension popup UI
+    │   ├── components/    # Popup components
+    │   │   ├── common/   # Shared popup components
+    │   │   └── converters/ # Converter popup components
+    │   └── App.vue       # Popup root component
+    ├── content/          # Content scripts
+    │   └── handlers/     # Content script handlers
+    │       ├── pdf.ts    # PDF content handler
+    │       └── ...
+    ├── background/       # Background scripts
+    │   └── converters/   # Converter background handlers
+    │       ├── pdf.ts    # PDF background handler
+    │       └── ...
+    └── manifest.json     # Extension manifest
 ```
 
 ## Core Principles
-- Browser-based processing
-- Zero server requirements
-- Maximum privacy
-- High performance
-- Extensible design
+
+### 1. Code Separation
+- **Shared Code**: Framework-unabhängige Core-Logik
+  - Wird von Web UND Extension genutzt
+  - Keine UI-Komponenten
+  - Keine Framework-Abhängigkeiten
+  - Fokus auf Wiederverwendbarkeit
+
+- **Web Code**: Web-spezifische Implementierung
+  - Nutzt Vue 3 + TypeScript
+  - Enthält UI-Komponenten
+  - State Management mit Pinia
+  - Fokus auf Benutzerfreundlichkeit
+
+- **Extension Code**: Extension-spezifische Implementierung
+  - Nutzt gleiche Shared-Logik
+  - Eigene UI für Popup/Content
+  - Browser-spezifische APIs
+  - Fokus auf Integration
+
+### 2. Converter Architecture
+- **Core Logic** (Shared):
+  - Basis-Converter-Klassen
+  - Format-spezifische Implementierungen
+  - Gemeinsame Utilities
+  - Typ-Definitionen
+
+- **Web Integration** (Web):
+  - Converter Stores
+  - UI-Komponenten
+  - View-Logik
+  - State Management
+
+- **Extension Integration** (Extension):
+  - Popup UI
+  - Content Scripts
+  - Background Handler
+  - Browser APIs
+
+### 3. State Management
+- **Shared State**:
+  - Converter Status
+  - Format Information
+  - Common Types
+
+- **Web State** (Pinia):
+  - UI State
+  - User Preferences
+  - Converter Options
+  - Progress Tracking
+
+- **Extension State**:
+  - Popup State
+  - Background State
+  - Browser Context
+
+## Technical Stack
+
+### Shared
+- TypeScript
+- Web Workers
+- WebAssembly
+- Core Libraries (PDF.js, etc.)
+
+### Web
+- Vue 3
+- TypeScript
+- Pinia
+- Vue Router
+- TailwindCSS
+
+### Extension
+- TypeScript
+- Browser APIs
+- Manifest V3
+- Content Scripts
+
+## Security Considerations
+
+### 1. File Processing
+- Lokale Verarbeitung
+- Keine Server-Uploads
+- Format-Validierung
+- Größenlimits
+- Speichermanagement
+
+### 2. Browser Security
+- Sandboxed Execution
+- CORS Policies
+- Content Security Policy
+- Feature Detection
+
+### 3. Data Privacy
+- Keine Datensammlung
+- Keine Analytics
+- Kein Tracking
+- Lokaler Storage
+
+## Performance Strategy
+
+### 1. Processing
+- Web Workers
+- Chunked Processing
+- Speichermanagement
+- Fortschrittsverfolgung
+
+### 2. Web Application
+- Lazy Loading
+- Code Splitting
+- Asset Optimization
+- Caching
+
+### 3. Extension
+- Effiziente Popup UI
+- Optimierte Content Scripts
+- Background Processing
+- Resource Management
 
 ## System Components
 
@@ -87,30 +207,6 @@ src/
 - Progressive enhancement
 - Error feedback
 - Progress indicators
-
-## Technical Stack
-
-### Frontend
-- Vue 3
-- TypeScript
-- Vite
-- Pinia
-- Vue Router
-- TailwindCSS
-
-### Processing
-- PDF.js
-- FFmpeg.wasm
-- Image processing libraries
-- Web Workers
-- WebAssembly
-
-### Development
-- ESLint
-- Prettier
-- Vitest
-- Cypress
-- GitHub Actions
 
 ## Architecture Decisions
 
@@ -145,52 +241,6 @@ src/
   - Storage limits
   - Browser support
   - Update management
-
-## Security Considerations
-
-### 1. File Processing
-- Local processing only
-- No server upload
-- Format validation
-- Size limits
-- Memory management
-
-### 2. Browser Security
-- Sandboxed execution
-- CORS policies
-- Content Security Policy
-- Feature detection
-- Fallback handling
-
-### 3. Data Privacy
-- No data collection
-- No analytics
-- No tracking
-- Local storage only
-- Clear data policies
-
-## Performance Strategy
-
-### 1. Processing
-- Chunked processing
-- Memory management
-- Resource cleanup
-- Progress tracking
-- Error recovery
-
-### 2. User Interface
-- Lazy loading
-- Code splitting
-- Asset optimization
-- Caching strategy
-- Responsive design
-
-### 3. Browser Support
-- Modern browsers
-- Progressive enhancement
-- Feature detection
-- Fallback options
-- Performance monitoring
 
 ## Future Considerations
 

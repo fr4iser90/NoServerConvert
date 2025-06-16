@@ -1,4 +1,4 @@
-import { BaseConverter, type ConverterOptions, type ConversionResult } from '../../core/base/BaseConverter'
+import { BaseConverter, type ConverterOptions, type ConversionResult } from '@shared/converters/core/base/BaseConverter'
 import { PDFDocument } from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist'
 import JSZip from 'jszip'
