@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BoltBadge from '@web/components/common/BoltBadge.vue'
+import Footer from '@web/components/common/Footer.vue'
 </script>
 
 <template>
@@ -9,6 +10,7 @@ import BoltBadge from '@web/components/common/BoltBadge.vue'
 
     <nav class="nav">
       <router-link to="/" class="nav-logo">
+        <img src="/ChatGPTICON.png" alt="NoServerConvert" class="nav-logo-img" />
         NoServerConvert
       </router-link>
       <div class="nav-links">
@@ -27,9 +29,7 @@ import BoltBadge from '@web/components/common/BoltBadge.vue'
       </router-view>
     </main>
 
-    <footer class="footer">
-      <p>NoServerConvert - Convert files directly in your browser</p>
-    </footer>
+    <Footer />
   </div>
 </template>
 
@@ -63,51 +63,64 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   font-size: 1.25rem;
   font-weight: 600;
   color: #2c3e50;
   text-decoration: none;
+  transition: color 0.2s;
 
   &:hover {
     color: #42b883;
   }
 }
 
+.nav-logo-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
 .nav-links {
   display: flex;
   gap: 1.5rem;
+
+  @media (max-width: 768px) {
+    gap: 1rem;
+  }
 
   a {
     color: #666;
     text-decoration: none;
     font-size: 0.875rem;
-    transition: color 0.2s;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.2s;
 
     &:hover {
       color: #42b883;
+      background: #f0f9f4;
     }
 
     &.router-link-active {
       color: #42b883;
-      font-weight: 500;
+      background: #e8f5e9;
+      font-weight: 600;
     }
   }
 }
 
 .main {
   flex: 1;
-}
-
-.footer {
-  background: #fff;
-  padding: 1rem;
-  text-align: center;
-  font-size: 0.875rem;
-  color: #666;
-  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
 }
 
 // Transitions
@@ -119,5 +132,28 @@ body {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+// Responsive navigation
+@media (max-width: 768px) {
+  .nav {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .nav-logo {
+    font-size: 1.1rem;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: center;
+    
+    a {
+      font-size: 0.8rem;
+      padding: 0.375rem 0.75rem;
+    }
+  }
 }
 </style>
