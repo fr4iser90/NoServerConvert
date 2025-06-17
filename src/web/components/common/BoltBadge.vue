@@ -7,7 +7,7 @@
       class="bolt-badge-link"
     >
       <img 
-        src="https://storage.bolt.army/white_circle_360x360.png" 
+        src="/white_circle_360x360.png" 
         alt="Built with Bolt.new badge" 
         class="bolt-badge bolt-badge-intro"
         @animationend="handleAnimationEnd"
