@@ -4,6 +4,17 @@
 
 <template>
   <div class="app">
+    <!-- Custom Bolt.new Badge Configuration -->
+    <div class="fixed top-4 right-4 z-50">
+      <a href="https://bolt.new/" target="_blank" rel="noopener noreferrer" 
+         class="block transition-all duration-300 hover:shadow-2xl">
+        <img src="https://storage.bolt.army/white_circle_360x360.png" 
+             alt="Built with Bolt.new badge" 
+             class="w-20 h-20 md:w-28 md:h-28 rounded-full shadow-lg bolt-badge bolt-badge-intro"
+             onanimationend="this.classList.add('animated')" />
+      </a>
+    </div>
+
     <nav class="nav">
       <router-link to="/" class="nav-logo">
         NoServerConvert
@@ -25,29 +36,99 @@
     </main>
 
     <footer class="footer">
-      <div class="footer-content">
-        <p>NoServerConvert - Convert files directly in your browser</p>
-        <div class="footer-badges">
-          <a 
-            href="https://bolthackathonbadge.bolt.army/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            class="bolt-badge"
-            title="Built with Bolt - Hackathon Project"
-          >
-            <img 
-              src="https://bolthackathonbadge.bolt.army/badge.svg" 
-              alt="Built with Bolt - Hackathon Badge"
-              class="badge-image"
-            />
-          </a>
-        </div>
-      </div>
+      <p>NoServerConvert - Convert files directly in your browser</p>
     </footer>
   </div>
 </template>
 
 <style lang="scss">
+// Custom Bolt.new Badge Configuration
+.bolt-badge {
+  transition: all 0.3s ease;
+}
+
+@keyframes badgeIntro {
+  0% { transform: rotateY(-90deg); opacity: 0; }
+  100% { transform: rotateY(0deg); opacity: 1; }
+}
+
+.bolt-badge-intro {
+  animation: badgeIntro 0.8s ease-out 1s both;
+}
+
+.bolt-badge-intro.animated {
+  animation: none;
+}
+
+@keyframes badgeHover {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.1) rotate(22deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.bolt-badge:hover {
+  animation: badgeHover 0.6s ease-in-out;
+}
+
+// Tailwind-like utilities for the badge
+.fixed {
+  position: fixed;
+}
+
+.top-4 {
+  top: 1rem;
+}
+
+.right-4 {
+  right: 1rem;
+}
+
+.z-50 {
+  z-index: 50;
+}
+
+.block {
+  display: block;
+}
+
+.transition-all {
+  transition-property: all;
+}
+
+.duration-300 {
+  transition-duration: 300ms;
+}
+
+.hover\:shadow-2xl:hover {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.w-20 {
+  width: 5rem;
+}
+
+.h-20 {
+  height: 5rem;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+@media (min-width: 768px) {
+  .md\:w-28 {
+    width: 7rem;
+  }
+  
+  .md\:h-28 {
+    height: 7rem;
+  }
+}
+
 // Global styles
 * {
   margin: 0;
@@ -118,58 +199,10 @@ body {
 .footer {
   background: #fff;
   padding: 1rem;
-  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.footer-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
+  text-align: center;
   font-size: 0.875rem;
   color: #666;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-}
-
-.footer-badges {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.bolt-badge {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  border-radius: 8px;
-  overflow: hidden;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-}
-
-.badge-image {
-  height: 32px;
-  width: auto;
-  display: block;
-  transition: all 0.3s ease;
-
-  .bolt-badge:hover & {
-    filter: brightness(1.1);
-  }
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
 }
 
 // Transitions
