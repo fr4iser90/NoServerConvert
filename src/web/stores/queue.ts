@@ -25,7 +25,7 @@ export const useQueueStore = defineStore('queue', () => {
   const maxConcurrent = ref(3) // Process 3 files simultaneously
   const maxMemoryUsage = ref(1024 * 1024 * 1024) // 1GB limit
   const bulkDownloadMode = ref<'pack10' | 'all'>('pack10') // 🎯 BULK DOWNLOAD MODE!
-  const bulkCounter = ref(1) // 🎯 Counter for consistent naming
+  const bulkCounter = ref(1) // 🎯 Counter for consistent naming - EXPOSED!
 
   // Computed properties
   const pendingFiles = computed(() => 
@@ -140,7 +140,7 @@ export const useQueueStore = defineStore('queue', () => {
     }
   }
 
-  // 🎯 BULK DOWNLOAD FUNCTION - FIXED!
+  // 🎯 BULK DOWNLOAD FUNCTION - FIXED ZIP-IN-ZIP!
   async function downloadBulk(files: QueuedFile[], packName: string) {
     try {
       console.log(`[Queue] 🎯 Starting ${packName} bulk download for ${files.length} files`)
@@ -166,30 +166,54 @@ export const useQueueStore = defineStore('queue', () => {
       const zip = new JSZip()
       let validFiles = 0
 
-      files.forEach((file, index) => {
+      for (const file of files) {
         if (file.convertedBlob && file.convertedName) {
-          // 🎯 WICHTIG: Check if converted file is already a ZIP
+          // 🎯 WICHTIG: Check if converted file is already a ZIP and extract it!
           const isZipFile = file.convertedName.endsWith('.zip')
           
           if (isZipFile) {
-            // If it's already a ZIP, extract its contents instead of nesting
             console.log(`[Queue] 📦 Extracting ZIP contents from: ${file.convertedName}`)
-            // For now, just add the ZIP as-is but with a better name
-            const baseName = file.file.name.split('.')[0]
-            const zipName = `${baseName}_converted.zip`
-            zip.file(zipName, file.convertedBlob)
+            try {
+              // Load the ZIP and extract its contents
+              const existingZip = await JSZip.loadAsync(file.convertedBlob)
+              const baseName = file.file.name.split('.')[0]
+              
+              // Add each file from the ZIP to our main ZIP
+              for (const [fileName, zipEntry] of Object.entries(existingZip.files)) {
+                if (!zipEntry.dir) {
+                  const content = await zipEntry.async('blob')
+                  // Prefix with original filename to avoid conflicts
+                  const newFileName = `${baseName}_${fileName}`
+                  zip.file(newFileName, content)
+                  console.log(`[Queue] 📄 Extracted: ${fileName} -> ${newFileName}`)
+                }
+              }
+            } catch (zipError) {
+              console.warn(`[Queue] ⚠️ Could not extract ZIP ${file.convertedName}, adding as-is:`, zipError)
+              // If extraction fails, add the ZIP as-is
+              const baseName = file.file.name.split('.')[0]
+              const zipName = `${baseName}_converted.zip`
+              zip.file(zipName, file.convertedBlob)
+            }
           } else {
             // Regular file - add directly
-            // Avoid name conflicts
-            const fileName = files.filter((f, i) => i < index && f.convertedName === file.convertedName).length > 0
-              ? `${file.convertedName.split('.')[0]}_${index + 1}.${file.convertedName.split('.').pop()}`
-              : file.convertedName
+            // Avoid name conflicts by checking for duplicates
+            let fileName = file.convertedName
+            let counter = 1
+            while (zip.files[fileName]) {
+              const nameParts = file.convertedName.split('.')
+              const extension = nameParts.pop()
+              const baseName = nameParts.join('.')
+              fileName = `${baseName}_${counter}.${extension}`
+              counter++
+            }
             
             zip.file(fileName, file.convertedBlob)
+            console.log(`[Queue] 📄 Added: ${fileName}`)
           }
           validFiles++
         }
-      })
+      }
 
       if (validFiles === 0) {
         console.warn('[Queue] ⚠️ No valid files to download')
@@ -452,6 +476,7 @@ export const useQueueStore = defineStore('queue', () => {
     maxConcurrent,
     maxMemoryUsage,
     bulkDownloadMode,
+    bulkCounter, // 🎯 EXPOSED for PDF store!
     
     // Computed
     pendingFiles,

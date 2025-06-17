@@ -59,7 +59,7 @@ export const usePdfStore = defineStore('pdf', {
 
         console.log(`[PDF Store] 🚀 Starting ${type} conversion for ${this.selectedFiles.length} immediate files`)
 
-        // 🎯 WICHTIG: Convert immediate files first - BULK DOWNLOAD!
+        // 🎯 WICHTIG: Convert immediate files first - CONSISTENT NAMING!
         if (this.selectedFiles.length === 1) {
           // Single file - direct download
           switch (type) {
@@ -74,7 +74,7 @@ export const usePdfStore = defineStore('pdf', {
               break
           }
         } else {
-          // Multiple files - create bulk ZIP
+          // Multiple files - create bulk ZIP with CONSISTENT naming
           await this.convertMultipleFiles(type)
         }
 
@@ -105,7 +105,7 @@ export const usePdfStore = defineStore('pdf', {
       }
     },
 
-    // 🎯 NEW: Convert multiple immediate files as bulk
+    // 🎯 NEW: Convert multiple immediate files as bulk - CONSISTENT NAMING!
     async convertMultipleFiles(type: 'image' | 'text' | 'html') {
       console.log(`[PDF Store] 📦 Converting ${this.selectedFiles.length} immediate files as bulk`)
       
@@ -138,8 +138,13 @@ export const usePdfStore = defineStore('pdf', {
       if (hasProcessedFiles) {
         console.log('[PDF Store] 📦 Creating immediate bulk ZIP...')
         const zipBlob = await zip.generateAsync({ type: 'blob' })
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
-        this.downloadBlob(zipBlob, `pdf_${type}_immediate_${timestamp}.zip`)
+        
+        // 🎯 CONSISTENT NAMING - same as queue!
+        const queueStore = useQueueStore()
+        const packName = `Converted_Pack-${queueStore.bulkCounter}`
+        queueStore.bulkCounter++ // Increment counter
+        
+        this.downloadBlob(zipBlob, `${packName}.zip`)
       }
     },
 
