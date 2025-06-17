@@ -3,6 +3,7 @@ import type { Ref } from 'vue'
 import * as pdfjsLib from 'pdfjs-dist'
 import { PDFDocument } from 'pdf-lib'
 import JSZip from 'jszip'
+import { useQueueStore } from '@web/stores/queue'
 
 // Initialize PDF.js worker
 if (typeof window !== 'undefined') {
@@ -14,6 +15,7 @@ interface PdfState {
   useZip: boolean
   imageFormat: string
   error: string | null
+  isProcessing: boolean
 }
 
 export const usePdfStore = defineStore('pdf', {
@@ -21,7 +23,8 @@ export const usePdfStore = defineStore('pdf', {
     selectedFiles: [],
     useZip: true,
     imageFormat: 'png',
-    error: null
+    error: null,
+    isProcessing: false
   }),
 
   actions: {
@@ -49,10 +52,14 @@ export const usePdfStore = defineStore('pdf', {
 
     async startConversion(type: 'image' | 'text' | 'html') {
       this.error = null
+      this.isProcessing = true
       
       try {
         if (this.selectedFiles.length === 0) return
 
+        console.log(`[PDF Store] 🚀 Starting ${type} conversion for ${this.selectedFiles.length} immediate files`)
+
+        // Convert immediate files first
         switch (type) {
           case 'image':
             await this.convertToImages()
@@ -64,9 +71,31 @@ export const usePdfStore = defineStore('pdf', {
             await this.convertToHtml()
             break
         }
+
+        // Clear immediate files after conversion
+        this.selectedFiles = []
+
+        // 🎯 WICHTIG: Jetzt Queue automatisch starten!
+        const queueStore = useQueueStore()
+        if (queueStore.pendingFiles.length > 0) {
+          console.log(`[PDF Store] 🔄 Auto-starting queue processing for ${queueStore.pendingFiles.length} queued files`)
+          
+          // Update queue options with current settings
+          queueStore.updateQueueOptions('pdf', {
+            format: type,
+            imageFormat: this.imageFormat,
+            useZip: this.useZip
+          })
+          
+          // Start queue processing
+          await queueStore.startProcessing()
+        }
+
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Conversion failed'
         console.error('Conversion error:', err)
+      } finally {
+        this.isProcessing = false
       }
     },
 
@@ -268,6 +297,7 @@ export const usePdfStore = defineStore('pdf', {
     },
 
     downloadBlob(blob: Blob, filename: string) {
+      console.log(`[PDF Store] 📥 Downloading: ${filename}`)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -278,4 +308,4 @@ export const usePdfStore = defineStore('pdf', {
       URL.revokeObjectURL(url)
     }
   }
-}) 
+})

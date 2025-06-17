@@ -67,12 +67,6 @@ export const useQueueStore = defineStore('queue', () => {
     
     files.value.push(...queuedFiles)
     console.log(`[Queue] Total files in queue: ${files.value.length}`)
-    
-    // Auto-start processing if not already running
-    if (!isProcessing.value) {
-      console.log('[Queue] Auto-starting queue processing')
-      startProcessing()
-    }
   }
 
   function removeFile(id: string) {
@@ -103,7 +97,20 @@ export const useQueueStore = defineStore('queue', () => {
       file.status = 'completed'
       file.progress = 100
       file.completedAt = new Date()
-      console.log(`[Queue] ✅ Conversion completed: ${file.file.name} -> ${name} (STORED IN QUEUE - NO AUTO-DOWNLOAD)`)
+      
+      // 🎯 WICHTIG: Automatischer Download für Queue-Dateien!
+      console.log(`[Queue] ✅ Conversion completed: ${file.file.name} -> ${name}`)
+      console.log(`[Queue] 📥 Auto-downloading queue file: ${name}`)
+      
+      // Sofort downloaden
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name || `converted-${file.file.name}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     }
   }
 
@@ -137,7 +144,7 @@ export const useQueueStore = defineStore('queue', () => {
       // Recursively continue processing
       await startProcessing()
     } else {
-      console.log('[Queue] ✅ Queue processing completed - All files stored in queue for manual download')
+      console.log('[Queue] ✅ Queue processing completed - All files auto-downloaded!')
       isProcessing.value = false
     }
   }
@@ -198,10 +205,9 @@ export const useQueueStore = defineStore('queue', () => {
       if (result.error) {
         updateFileStatus(queuedFile.id, 'error', 0, result.error)
       } else {
-        // 🎯 WICHTIG: Nur in Queue speichern, NICHT automatisch downloaden!
-        console.log(`[Queue] 📦 Storing converted file in queue: ${result.fileName}`)
+        // 🎯 WICHTIG: Automatisch downloaden und als completed markieren!
+        console.log(`[Queue] 📦 Converting and auto-downloading: ${result.fileName}`)
         setConvertedFile(queuedFile.id, result.blob, result.fileName)
-        // KEIN DOWNLOAD HIER! Nur speichern für späteren manuellen Download
       }
       
     } catch (error) {
