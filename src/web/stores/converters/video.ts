@@ -111,10 +111,25 @@ export const useVideoStore = defineStore('video-converter', {
 
         const { fetchFile } = await import('@ffmpeg/util')
 
-        // FFmpeg Optionen basierend auf Format
-        const options = format === 'mp4' 
-          ? ['-c:v', 'libx264', '-crf', this.videoQuality.toString(), '-c:a', 'aac']
-          : ['-c:v', 'libvpx-vp9', '-crf', this.videoQuality.toString(), '-c:a', 'libopus']
+        // 🎯 OPTIMIERTE FFMPEG OPTIONEN!
+        let options: string[]
+        if (format === 'mp4') {
+          // H.264 - SCHNELL!
+          options = ['-c:v', 'libx264', '-crf', this.videoQuality.toString(), '-c:a', 'aac']
+        } else {
+          // VP9 - OPTIMIERT FÜR GESCHWINDIGKEIT!
+          options = [
+            '-c:v', 'libvpx-vp9',
+            '-crf', this.videoQuality.toString(),
+            '-speed', '8',        // 🚀 MAXIMUM SPEED!
+            '-tile-columns', '6', // 🚀 PARALLEL PROCESSING!
+            '-frame-parallel', '1', // 🚀 FRAME PARALLEL!
+            '-threads', '8',      // 🚀 MORE THREADS!
+            '-deadline', 'realtime', // 🚀 REALTIME MODE!
+            '-cpu-used', '8',     // 🚀 FASTEST CPU PRESET!
+            '-c:a', 'libopus'
+          ]
+        }
         
         console.log('[Video Store] Using FFmpeg options:', options)
 
@@ -122,7 +137,12 @@ export const useVideoStore = defineStore('video-converter', {
           const file = this.selectedFiles[i]
           this.currentFile = i + 1
           this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
-          this.loadingMessage = `Converting ${file.name} to ${format.toUpperCase()}...`
+          
+          if (format === 'webm') {
+            this.loadingMessage = `Converting ${file.name} to WebM (VP9 is slow, please wait)...`
+          } else {
+            this.loadingMessage = `Converting ${file.name} to ${format.toUpperCase()}...`
+          }
           
           console.log('[Video Store] Processing file:', file.name)
           
@@ -162,7 +182,7 @@ export const useVideoStore = defineStore('video-converter', {
           ])
           console.log('[Video Store] FFmpeg conversion finished with result:', result)
 
-          // 🎯 ENTFERNE VALIDIERUNG - VERTRAUE FFMPEG!
+          // Read output file
           console.log('[Video Store] Reading output file...')
           const data = await this.ffmpeg.readFile(outputFileName, 'binary') as Uint8Array
           console.log('[Video Store] Output file read, size:', data.length)
@@ -238,7 +258,6 @@ export const useVideoStore = defineStore('video-converter', {
             outputFileName
           ])
 
-          // 🎯 ENTFERNE VALIDIERUNG - VERTRAUE FFMPEG!
           const data = await this.ffmpeg.readFile(outputFileName)
           const blob = new Blob([data], { type: 'audio/mp3' })
           
@@ -308,7 +327,6 @@ export const useVideoStore = defineStore('video-converter', {
             outputFileName
           ])
 
-          // 🎯 ENTFERNE VALIDIERUNG - VERTRAUE FFMPEG!
           const data = await this.ffmpeg.readFile(outputFileName)
           const blob = new Blob([data], { type: file.type })
           
