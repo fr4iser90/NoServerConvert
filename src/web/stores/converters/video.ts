@@ -175,6 +175,20 @@ export const useVideoStore = defineStore('video-converter', {
           ])
           console.log('[Video Store] FFmpeg conversion finished with result:', result)
 
+          // Check if output file exists and has valid size before reading
+          console.log('[Video Store] Checking output file...')
+          try {
+            const stat = await this.ffmpeg.stat(outputFileName)
+            console.log('[Video Store] Output file stat:', stat)
+            
+            if (!stat || stat.size === 0) {
+              throw new Error(`FFmpeg failed to produce a valid output file. The conversion may have failed due to unsupported codec or corrupted input file.`)
+            }
+          } catch (statError) {
+            console.error('[Video Store] Failed to stat output file:', statError)
+            throw new Error(`FFmpeg conversion failed: Output file ${outputFileName} does not exist or is empty. This may be due to unsupported video format or codec issues.`)
+          }
+
           // Read the output file
           console.log('[Video Store] Reading output file...')
           const data = await this.ffmpeg.readFile(outputFileName, 'binary') as Uint8Array
@@ -251,6 +265,16 @@ export const useVideoStore = defineStore('video-converter', {
             outputFileName
           ])
 
+          // Check if output file exists and has valid size before reading
+          try {
+            const stat = await this.ffmpeg.stat(outputFileName)
+            if (!stat || stat.size === 0) {
+              throw new Error(`FFmpeg failed to extract audio. The video may not contain audio or the audio codec is not supported.`)
+            }
+          } catch (statError) {
+            throw new Error(`Audio extraction failed: Output file ${outputFileName} does not exist or is empty.`)
+          }
+
           const data = await this.ffmpeg.readFile(outputFileName)
           const blob = new Blob([data], { type: 'audio/mp3' })
           
@@ -319,6 +343,16 @@ export const useVideoStore = defineStore('video-converter', {
             '-b:a', '128k', // Lower audio bitrate
             outputFileName
           ])
+
+          // Check if output file exists and has valid size before reading
+          try {
+            const stat = await this.ffmpeg.stat(outputFileName)
+            if (!stat || stat.size === 0) {
+              throw new Error(`FFmpeg failed to compress the video. The compression may have failed due to unsupported codec or corrupted input file.`)
+            }
+          } catch (statError) {
+            throw new Error(`Video compression failed: Output file ${outputFileName} does not exist or is empty. This may be due to unsupported video format or codec issues.`)
+          }
 
           const data = await this.ffmpeg.readFile(outputFileName)
           const blob = new Blob([data], { type: file.type })
