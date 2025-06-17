@@ -1,5 +1,19 @@
 <template>
   <div class="converter-container">
+    <!-- Loading Overlay -->
+    <LoadingSpinner
+      v-if="videoStore.isProcessing"
+      overlay
+      size="large"
+      title="Video Converter"
+      :message="videoStore.loadingMessage"
+      :progress="videoStore.loadingProgress"
+      :file-count="videoStore.totalFiles"
+      :current-file="videoStore.currentFile"
+      cancellable
+      @cancel="cancelConversion"
+    />
+
     <div class="converter-main">
       <h1>Video Converter</h1>
       
@@ -10,6 +24,7 @@
         :multiple="true"
         :max-files="5"
         converter-type="video"
+        :disabled="videoStore.isProcessing"
         @files-selected="handleFilesSelected"
         @files-queued="handleFilesQueued"
         @error="handleError"
@@ -17,8 +32,8 @@
 
       <FileList
         :files="videoStore.selectedFiles"
-        :is-processing="videoStore.isProcessing"
-        @remove-file="videoStore.removeFile"
+        title="Ready for Conversion:"
+        @remove="videoStore.removeFile"
       />
 
       <ConversionOptions
@@ -48,6 +63,7 @@ import FileUpload from '@web/components/common/FileUpload.vue'
 import FileList from '@web/components/common/FileList.vue'
 import ConversionOptions from '@web/components/converters/video/ConversionOptions.vue'
 import QueueList from '@web/components/common/QueueList.vue'
+import LoadingSpinner from '@web/components/common/LoadingSpinner.vue'
 
 const videoStore = useVideoStore()
 const queueStore = useQueueStore()
@@ -102,6 +118,12 @@ function handleCompress() {
   queueStore.updateQueueOptions('video', {
     format: 'compress'
   })
+}
+
+function cancelConversion() {
+  videoStore.isProcessing = false
+  videoStore.loadingMessage = ''
+  videoStore.loadingProgress = 0
 }
 </script>
 

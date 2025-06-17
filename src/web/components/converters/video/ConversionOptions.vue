@@ -9,7 +9,7 @@
         <div class="conversion-settings">
           <div class="setting-group">
             <label>Quality (CRF):</label>
-            <select v-model="videoStore.videoQuality">
+            <select v-model="videoStore.videoQuality" :disabled="isProcessing">
               <option :value="18">Maximum (18)</option>
               <option :value="23">High (23)</option>
               <option :value="28">Medium (28)</option>
@@ -23,7 +23,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('convert', 'mp4')"
         >
-          Convert to MP4
+          {{ isProcessing ? 'Converting...' : 'Convert to MP4' }}
         </button>
       </div>
 
@@ -33,7 +33,7 @@
         <div class="conversion-settings">
           <div class="setting-group">
             <label>Quality (CRF):</label>
-            <select v-model="videoStore.videoQuality">
+            <select v-model="videoStore.videoQuality" :disabled="isProcessing">
               <option :value="18">Maximum (18)</option>
               <option :value="23">High (23)</option>
               <option :value="28">Medium (28)</option>
@@ -47,7 +47,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('convert', 'webm')"
         >
-          Convert to WebM
+          {{ isProcessing ? 'Converting...' : 'Convert to WebM' }}
         </button>
       </div>
 
@@ -64,7 +64,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('extract-audio')"
         >
-          Extract Audio
+          {{ isProcessing ? 'Extracting...' : 'Extract Audio' }}
         </button>
       </div>
 
@@ -81,7 +81,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('compress')"
         >
-          Compress Video
+          {{ isProcessing ? 'Compressing...' : 'Compress Video' }}
         </button>
       </div>
     </div>
@@ -161,6 +161,11 @@ const videoStore = useVideoStore()
     border-radius: 4px;
     background: #fff;
     color: #2c3e50;
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
   }
 
   .quality-hint {
@@ -188,6 +193,7 @@ const videoStore = useVideoStore()
   &:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+    background: #94a3b8;
   }
 }
-</style> 
+</style>

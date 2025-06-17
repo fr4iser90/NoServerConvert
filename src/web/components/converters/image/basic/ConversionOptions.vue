@@ -9,7 +9,7 @@
         <div class="conversion-settings">
           <div class="setting-group">
             <label>Quality:</label>
-            <select v-model="imageStore.imageQuality">
+            <select v-model="imageStore.imageQuality" :disabled="isProcessing">
               <option :value="1.0">Maximum (100%)</option>
               <option :value="0.9">High (90%)</option>
               <option :value="0.8">Medium (80%)</option>
@@ -22,7 +22,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('convert', 'jpg')"
         >
-          Convert to JPG
+          {{ isProcessing ? 'Converting...' : 'Convert to JPG' }}
         </button>
       </div>
 
@@ -34,7 +34,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('convert', 'png')"
         >
-          Convert to PNG
+          {{ isProcessing ? 'Converting...' : 'Convert to PNG' }}
         </button>
       </div>
 
@@ -44,7 +44,7 @@
         <div class="conversion-settings">
           <div class="setting-group">
             <label>Quality:</label>
-            <select v-model="imageStore.imageQuality">
+            <select v-model="imageStore.imageQuality" :disabled="isProcessing">
               <option :value="1.0">Maximum (100%)</option>
               <option :value="0.9">High (90%)</option>
               <option :value="0.8">Medium (80%)</option>
@@ -57,7 +57,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('convert', 'webp')"
         >
-          Convert to WebP
+          {{ isProcessing ? 'Converting...' : 'Convert to WebP' }}
         </button>
       </div>
     </div>
@@ -135,6 +135,11 @@ const imageStore = useImageStore()
     border-radius: 4px;
     background: #fff;
     color: #2c3e50;
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
   }
 }
 
@@ -156,6 +161,7 @@ const imageStore = useImageStore()
   &:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+    background: #94a3b8;
   }
 }
-</style> 
+</style>

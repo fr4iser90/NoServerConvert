@@ -9,7 +9,7 @@
         <div class="conversion-settings">
           <div class="setting-group">
             <label>Quality:</label>
-            <select v-model="audioStore.audioQuality">
+            <select v-model="audioStore.audioQuality" :disabled="isProcessing">
               <option :value="0">Maximum (0)</option>
               <option :value="2">High (2)</option>
               <option :value="4">Medium (4)</option>
@@ -23,7 +23,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('convert', 'mp3')"
         >
-          Convert to MP3
+          {{ isProcessing ? 'Converting...' : 'Convert to MP3' }}
         </button>
       </div>
 
@@ -35,7 +35,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('convert', 'wav')"
         >
-          Convert to WAV
+          {{ isProcessing ? 'Converting...' : 'Convert to WAV' }}
         </button>
       </div>
 
@@ -45,7 +45,7 @@
         <div class="conversion-settings">
           <div class="setting-group">
             <label>Quality:</label>
-            <select v-model="audioStore.audioQuality">
+            <select v-model="audioStore.audioQuality" :disabled="isProcessing">
               <option :value="0">Maximum (0)</option>
               <option :value="2">High (2)</option>
               <option :value="4">Medium (4)</option>
@@ -59,7 +59,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('convert', 'ogg')"
         >
-          Convert to OGG
+          {{ isProcessing ? 'Converting...' : 'Convert to OGG' }}
         </button>
       </div>
 
@@ -76,7 +76,7 @@
           :disabled="!files.length || isProcessing"
           @click="$emit('compress')"
         >
-          Compress Audio
+          {{ isProcessing ? 'Compressing...' : 'Compress Audio' }}
         </button>
       </div>
     </div>
@@ -155,6 +155,11 @@ const audioStore = useAudioStore()
     border-radius: 4px;
     background: #fff;
     color: #2c3e50;
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
   }
 
   .quality-hint {
@@ -182,6 +187,7 @@ const audioStore = useAudioStore()
   &:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+    background: #94a3b8;
   }
 }
-</style> 
+</style>

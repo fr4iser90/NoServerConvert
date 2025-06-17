@@ -9,13 +9,13 @@
         <div class="conversion-settings">
           <div class="setting-group">
             <label>
-              <input type="checkbox" v-model="pdfStore.useZip" />
+              <input type="checkbox" v-model="pdfStore.useZip" :disabled="disabled" />
               Package all images in ZIP
             </label>
           </div>
           <div class="setting-group">
             <label>Image Format:</label>
-            <select v-model="pdfStore.imageFormat">
+            <select v-model="pdfStore.imageFormat" :disabled="disabled">
               <option value="png">PNG</option>
               <option value="jpg">JPG</option>
             </select>
@@ -23,10 +23,10 @@
         </div>
         <button
           class="convert-button"
-          :disabled="!files.length"
+          :disabled="!files.length || disabled"
           @click="$emit('convert', 'image')"
         >
-          Convert to Images
+          {{ disabled ? 'Converting...' : 'Convert to Images' }}
         </button>
       </div>
 
@@ -35,10 +35,10 @@
         <p>Extract text from PDFs</p>
         <button
           class="convert-button"
-          :disabled="!files.length"
+          :disabled="!files.length || disabled"
           @click="$emit('convert', 'text')"
         >
-          Extract Text
+          {{ disabled ? 'Extracting...' : 'Extract Text' }}
         </button>
       </div>
 
@@ -47,10 +47,10 @@
         <p>Convert PDFs to HTML format</p>
         <button
           class="convert-button"
-          :disabled="!files.length"
+          :disabled="!files.length || disabled"
           @click="$emit('convert', 'html')"
         >
-          Convert to HTML
+          {{ disabled ? 'Converting...' : 'Convert to HTML' }}
         </button>
       </div>
     </div>
@@ -62,6 +62,9 @@ import { usePdfStore } from '@web/stores/converters/pdf'
 
 defineProps<{
   files: File[]
+  useZip?: boolean
+  imageFormat?: string
+  disabled?: boolean
 }>()
 
 defineEmits<{
@@ -127,6 +130,18 @@ const pdfStore = usePdfStore()
     border-radius: 4px;
     background: #fff;
     color: #2c3e50;
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+  }
+
+  input[type="checkbox"] {
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
   }
 }
 
@@ -148,6 +163,7 @@ const pdfStore = usePdfStore()
   &:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+    background: #94a3b8;
   }
 }
-</style> 
+</style>
