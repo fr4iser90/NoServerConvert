@@ -18,7 +18,7 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util', 'pdfjs-dist']
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
   },
   build: {
     rollupOptions: {
@@ -31,9 +31,18 @@ export default defineConfig({
   },
   publicDir: 'public',
   server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
     fs: {
-      // Allow serving files from one level up to the project root
-      allow: ['..']
+      allow: [
+        '..',
+        '../../node_modules/@ffmpeg'
+      ]
     }
+  },
+  worker: {
+    format: 'es'
   }
 })
