@@ -1,19 +1,11 @@
 <script setup lang="ts">
-// No setup needed for now
+import BoltBadge from '@web/components/common/BoltBadge.vue'
 </script>
 
 <template>
   <div class="app">
-    <!-- Custom Bolt.new Badge Configuration (Pure CSS) -->
-    <div class="bolt-badge-container">
-      <a href="https://bolt.new/" target="_blank" rel="noopener noreferrer" 
-         class="bolt-badge-link">
-        <img src="https://storage.bolt.army/white_circle_360x360.png" 
-             alt="Built with Bolt.new badge" 
-             class="bolt-badge bolt-badge-intro"
-             onanimationend="this.classList.add('animated')" />
-      </a>
-    </div>
+    <!-- Bolt Badge Component -->
+    <BoltBadge />
 
     <nav class="nav">
       <router-link to="/" class="nav-logo">
@@ -55,72 +47,6 @@ body {
   line-height: 1.6;
   color: #2c3e50;
   background: #f8f9fa;
-}
-
-// Bolt badge styles - FIXED!
-.bolt-badge-container {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 9999; // Higher z-index to ensure visibility
-}
-
-.bolt-badge-link {
-  display: block;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    transform: scale(1.05);
-  }
-}
-
-.bolt-badge {
-  width: 5rem;
-  height: 5rem;
-  border-radius: 50%;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-
-  @media (min-width: 768px) {
-    width: 7rem;
-    height: 7rem;
-  }
-
-  &:hover {
-    animation: badgeHover 0.6s ease-in-out;
-  }
-}
-
-@keyframes badgeIntro {
-  0% { 
-    transform: rotateY(-90deg); 
-    opacity: 0; 
-  }
-  100% { 
-    transform: rotateY(0deg); 
-    opacity: 1; 
-  }
-}
-
-.bolt-badge-intro {
-  animation: badgeIntro 0.8s ease-out 1s both;
-
-  &.animated {
-    animation: none;
-  }
-}
-
-@keyframes badgeHover {
-  0% { 
-    transform: scale(1) rotate(0deg); 
-  }
-  50% { 
-    transform: scale(1.1) rotate(22deg); 
-  }
-  100% { 
-    transform: scale(1) rotate(0deg); 
-  }
 }
 
 // App styles
