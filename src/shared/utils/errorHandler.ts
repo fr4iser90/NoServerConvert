@@ -184,18 +184,20 @@ export class ErrorHandler {
 }
 
 // Global error handler
-window.addEventListener('error', (event) => {
-  ErrorHandler.createError(
-    ErrorType.UNKNOWN_ERROR,
-    event.message,
-    `${event.filename}:${event.lineno}:${event.colno}`
-  )
-})
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    ErrorHandler.createError(
+      ErrorType.UNKNOWN_ERROR,
+      event.message,
+      `${event.filename}:${event.lineno}:${event.colno}`
+    )
+  })
 
-window.addEventListener('unhandledrejection', (event) => {
-  ErrorHandler.createError(
-    ErrorType.UNKNOWN_ERROR,
-    'Unhandled promise rejection',
-    String(event.reason)
-  )
-})
+  window.addEventListener('unhandledrejection', (event) => {
+    ErrorHandler.createError(
+      ErrorType.UNKNOWN_ERROR,
+      'Unhandled promise rejection',
+      String(event.reason)
+    )
+  })
+}
