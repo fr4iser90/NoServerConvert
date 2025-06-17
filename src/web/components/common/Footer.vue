@@ -24,10 +24,10 @@
       <div class="footer-section">
         <h3>Privacy</h3>
         <ul class="footer-links">
-          <li><a href="#" @click.prevent>Privacy Policy</a></li>
-          <li><a href="#" @click.prevent>How it Works</a></li>
-          <li><a href="#" @click.prevent>Security</a></li>
-          <li><a href="#" @click.prevent>Open Source</a></li>
+          <li><router-link to="/privacy">Privacy Policy</router-link></li>
+          <li><router-link to="/how-it-works">How it Works</router-link></li>
+          <li><router-link to="/security">Security</router-link></li>
+          <li><a href="https://github.com/fr4iser/NoServerConvert" target="_blank" rel="noopener">Open Source</a></li>
         </ul>
       </div>
 
