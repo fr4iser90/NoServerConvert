@@ -1,67 +1,124 @@
 <template>
-  <div class="queue-sidebar" v-if="queueStore.queue.length > 0">
+  <div class="queue-list">
     <div class="queue-header">
       <h2>Processing Queue</h2>
-      <div class="queue-actions">
-        <button 
-          v-if="queueStore.completedFiles.length > 0"
-          @click="queueStore.clearCompleted"
-          class="clear-button"
-        >
-          Clear Completed
-        </button>
-        <button 
-          v-if="queueStore.errorFiles.length > 0"
-          @click="queueStore.clearErrors"
-          class="clear-button"
-        >
-          Clear Errors
-        </button>
+      <div class="queue-stats">
+        <span class="stat">{{ queueStore.files.length }} files</span>
+        <span class="stat">{{ queueStore.totalProgress }}% complete</span>
       </div>
     </div>
 
-    <div class="queue-list">
+    <div class="queue-controls">
+      <button 
+        v-if="queueStore.isProcessing"
+        @click="queueStore.pauseProcessing()"
+        class="control-btn pause"
+      >
+        ⏸️ Pause
+      </button>
+      <button 
+        v-else-if="queueStore.pendingFiles.length > 0"
+        @click="queueStore.startProcessing()"
+        class="control-btn play"
+      >
+        ▶️ Start
+      </button>
+      
+      <button 
+        v-if="queueStore.completedFiles.length > 0"
+        @click="queueStore.clearCompleted()"
+        class="control-btn clear"
+      >
+        🗑️ Clear Completed
+      </button>
+      
+      <button 
+        v-if="queueStore.errorFiles.length > 0"
+        @click="queueStore.clearErrors()"
+        class="control-btn clear"
+      >
+        ❌ Clear Errors
+      </button>
+    </div>
+
+    <div class="queue-items" v-if="queueStore.files.length > 0">
       <div 
-        v-for="file in queueStore.queue" 
+        v-for="file in queueStore.files" 
         :key="file.id"
         class="queue-item"
         :class="file.status"
       >
         <div class="file-info">
-          <span class="file-name">{{ file.file.name }}</span>
-          <span class="file-type">{{ file.type }}</span>
+          <div class="file-name">{{ file.file.name }}</div>
+          <div class="file-meta">
+            <span class="file-size">{{ formatFileSize(file.file.size) }}</span>
+            <span class="file-type">{{ file.converter.toUpperCase() }}</span>
+            <span class="status-badge" :class="file.status">
+              {{ getStatusText(file.status) }}
+            </span>
+          </div>
         </div>
 
-        <div class="status-info">
+        <div class="progress-section" v-if="file.status === 'processing'">
           <div class="progress-bar">
             <div 
               class="progress-fill"
               :style="{ width: `${file.progress}%` }"
             ></div>
           </div>
-          <span class="status-text">{{ getStatusText(file.status) }}</span>
+          <span class="progress-text">{{ file.progress }}%</span>
         </div>
 
-        <div v-if="file.error" class="error-text">
+        <div v-if="file.error" class="error-message">
           {{ file.error }}
         </div>
 
-        <button 
-          v-if="file.status === 'completed'"
-          @click="downloadFile(file)"
-          class="download-button"
-        >
-          Download
-        </button>
+        <div class="file-actions">
+          <button 
+            v-if="file.status === 'completed' && file.convertedBlob"
+            @click="downloadFile(file)"
+            class="action-btn download"
+            title="Download converted file"
+          >
+            📥 Download
+          </button>
+          
+          <button 
+            v-if="file.status === 'error'"
+            @click="queueStore.retryFile(file.id)"
+            class="action-btn retry"
+            title="Retry conversion"
+          >
+            🔄 Retry
+          </button>
+          
+          <button 
+            v-if="['pending', 'error'].includes(file.status)"
+            @click="queueStore.removeFile(file.id)"
+            class="action-btn remove"
+            title="Remove from queue"
+          >
+            ❌ Remove
+          </button>
 
-        <button 
-          v-if="['pending', 'error'].includes(file.status)"
-          @click="queueStore.removeFile(file.id)"
-          class="remove-button"
-        >
-          Remove
-        </button>
+          <select 
+            v-if="file.status === 'pending'"
+            :value="file.priority"
+            @change="queueStore.setPriority(file.id, Number($event.target.value))"
+            class="priority-select"
+            title="Set priority"
+          >
+            <option value="10">High Priority</option>
+            <option value="5">Normal Priority</option>
+            <option value="1">Low Priority</option>
+          </select>
+        </div>
       </div>
+    </div>
+
+    <div v-else class="empty-queue">
+      <p>No files in queue</p>
+      <p class="hint">Upload files to start converting</p>
     </div>
   </div>
 </template>
@@ -73,18 +130,27 @@ const queueStore = useQueueStore()
 
 const getStatusText = (status: QueuedFile['status']) => {
   switch (status) {
-    case 'pending': return 'Waiting...'
-    case 'processing': return 'Processing...'
-    case 'completed': return 'Completed'
-    case 'error': return 'Error'
+    case 'pending': return 'Waiting'
+    case 'processing': return 'Converting'
+    case 'completed': return 'Done'
+    case 'error': return 'Failed'
+    case 'paused': return 'Paused'
     default: return status
   }
 }
 
-const downloadFile = (file: QueuedFile) => {
-  if (!file.convertedFile || !file.convertedName) return
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
 
-  const url = URL.createObjectURL(file.convertedFile)
+const downloadFile = (file: QueuedFile) => {
+  if (!file.convertedBlob || !file.convertedName) return
+
+  const url = URL.createObjectURL(file.convertedBlob)
   const a = document.createElement('a')
   a.href = url
   a.download = file.convertedName
@@ -96,155 +162,211 @@ const downloadFile = (file: QueuedFile) => {
 </script>
 
 <style lang="scss" scoped>
-.queue-sidebar {
+.queue-list {
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   height: fit-content;
-  position: sticky;
-  top: 2rem;
-  width: 100%;
+  max-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
 }
 
 .queue-header {
   padding: 1rem;
   border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
+  
   h2 {
-    margin: 0;
+    margin: 0 0 0.5rem;
     font-size: 1.1rem;
     color: #2c3e50;
   }
 }
 
-.queue-actions {
+.queue-stats {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #666;
 }
 
-.clear-button {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  color: #666;
-  background: none;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
+.queue-controls {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
 
-  &:hover {
-    background: #f5f5f5;
+.control-btn {
+  padding: 0.25rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &.play {
+    background: #d1e7dd;
+    color: #0f5132;
+    &:hover { background: #badbcc; }
+  }
+
+  &.pause {
+    background: #fff3cd;
+    color: #664d03;
+    &:hover { background: #ffecb5; }
+  }
+
+  &.clear {
+    background: #f8d7da;
+    color: #842029;
+    &:hover { background: #f5c2c7; }
   }
 }
 
-.queue-list {
+.queue-items {
+  flex: 1;
+  overflow-y: auto;
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
+  gap: 0.75rem;
 }
 
 .queue-item {
   background: #f8f9fa;
   border-radius: 6px;
   padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  border-left: 4px solid #dee2e6;
 
-  &.processing {
-    background: #e3f2fd;
-  }
-
-  &.completed {
-    background: #e8f5e9;
-  }
-
-  &.error {
-    background: #ffebee;
-  }
+  &.pending { border-left-color: #6c757d; }
+  &.processing { border-left-color: #0dcaf0; }
+  &.completed { border-left-color: #198754; }
+  &.error { border-left-color: #dc3545; }
+  &.paused { border-left-color: #fd7e14; }
 }
 
 .file-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.875rem;
-
-  .file-name {
-    font-weight: 500;
-    color: #2c3e50;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 70%;
-  }
-
-  .file-type {
-    color: #666;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-  }
+  margin-bottom: 0.5rem;
 }
 
-.status-info {
+.file-name {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 0.875rem;
+  word-break: break-all;
+  margin-bottom: 0.25rem;
+}
+
+.file-meta {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.status-badge {
+  padding: 0.125rem 0.375rem;
+  border-radius: 10px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+
+  &.pending { background: #e9ecef; color: #495057; }
+  &.processing { background: #cff4fc; color: #055160; }
+  &.completed { background: #d1e7dd; color: #0f5132; }
+  &.error { background: #f8d7da; color: #842029; }
+  &.paused { background: #fff3cd; color: #664d03; }
+}
+
+.progress-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .progress-bar {
+  flex: 1;
   height: 4px;
-  background: #eee;
+  background: #e9ecef;
   border-radius: 2px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: #42b883;
+  background: #0dcaf0;
   transition: width 0.3s ease;
 }
 
-.status-text {
+.progress-text {
   font-size: 0.75rem;
   color: #666;
+  min-width: 35px;
 }
 
-.error-text {
+.error-message {
+  background: #f8d7da;
+  color: #842029;
+  padding: 0.5rem;
+  border-radius: 4px;
   font-size: 0.75rem;
-  color: #dc2626;
+  margin-bottom: 0.5rem;
 }
 
-.download-button,
-.remove-button {
+.file-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.action-btn {
   padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
   border: none;
   border-radius: 4px;
+  font-size: 0.75rem;
   cursor: pointer;
-  align-self: flex-end;
-}
+  transition: background-color 0.2s;
 
-.download-button {
-  background: #42b883;
-  color: white;
+  &.download {
+    background: #d1e7dd;
+    color: #0f5132;
+    &:hover { background: #badbcc; }
+  }
 
-  &:hover {
-    background: #3aa876;
+  &.retry {
+    background: #fff3cd;
+    color: #664d03;
+    &:hover { background: #ffecb5; }
+  }
+
+  &.remove {
+    background: #f8d7da;
+    color: #842029;
+    &:hover { background: #f5c2c7; }
   }
 }
 
-.remove-button {
-  background: #fee2e2;
-  color: #dc2626;
+.priority-select {
+  padding: 0.125rem 0.25rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: white;
+}
 
-  &:hover {
-    background: #fecaca;
+.empty-queue {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+
+  .hint {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
   }
 }
-</style> 
+</style>
