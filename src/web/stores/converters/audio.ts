@@ -8,6 +8,10 @@ interface AudioState {
   audioFormat: string
   audioQuality: number
   ffmpeg: any | null
+  loadingMessage: string
+  loadingProgress: number
+  currentFile: number
+  totalFiles: number
 }
 
 export const useAudioStore = defineStore('audio-converter', {
@@ -17,7 +21,11 @@ export const useAudioStore = defineStore('audio-converter', {
     isProcessing: false,
     audioFormat: 'mp3',
     audioQuality: 2, // FFmpeg quality setting (0-9, lower is better)
-    ffmpeg: null
+    ffmpeg: null,
+    loadingMessage: '',
+    loadingProgress: 0,
+    currentFile: 0,
+    totalFiles: 0
   }),
 
   actions: {
@@ -28,12 +36,27 @@ export const useAudioStore = defineStore('audio-converter', {
       }
 
       try {
+        this.isProcessing = true
+        this.loadingMessage = 'Initializing audio converter...'
+        this.loadingProgress = 0
+
         console.log('[Audio Store] Getting FFmpeg instance from queue store...')
         const queueStore = useQueueStore()
         this.ffmpeg = await queueStore.getFFmpegInstance('audio')
         console.log('[Audio Store] FFmpeg instance obtained successfully')
+        
+        this.loadingMessage = 'Audio converter ready!'
+        this.loadingProgress = 100
+        
+        setTimeout(() => {
+          this.isProcessing = false
+          this.loadingMessage = ''
+          this.loadingProgress = 0
+        }, 500)
       } catch (error) {
         console.error('[Audio Store] Failed to get FFmpeg instance:', error)
+        this.error = `Failed to initialize audio converter: ${error instanceof Error ? error.message : String(error)}`
+        this.isProcessing = false
         throw new Error(`Failed to initialize audio converter: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
@@ -67,6 +90,8 @@ export const useAudioStore = defineStore('audio-converter', {
       try {
         this.isProcessing = true
         this.error = null
+        this.totalFiles = this.selectedFiles.length
+        this.loadingMessage = `Converting ${this.totalFiles} audio files to ${format.toUpperCase()}...`
 
         const { fetchFile } = await import('@ffmpeg/util')
 
@@ -75,7 +100,12 @@ export const useAudioStore = defineStore('audio-converter', {
                        format === 'wav' ? ['-c:a', 'pcm_s16le'] :
                        ['-c:a', 'libvorbis', '-q:a', this.audioQuality.toString()]
 
-        for (const file of this.selectedFiles) {
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+          const file = this.selectedFiles[i]
+          this.currentFile = i + 1
+          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          this.loadingMessage = `Converting ${file.name} to ${format.toUpperCase()}...`
+
           // Write input file to FFmpeg's virtual filesystem
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
           const outputFileName = 'output.' + format
@@ -107,10 +137,16 @@ export const useAudioStore = defineStore('audio-converter', {
 
         // Clear files after successful conversion
         this.selectedFiles = []
+        this.loadingMessage = 'Conversion completed!'
+        
+        setTimeout(() => {
+          this.isProcessing = false
+          this.loadingMessage = ''
+          this.loadingProgress = 0
+        }, 1000)
       } catch (err) {
         console.error('[Audio Store] Conversion failed:', err)
         this.error = err instanceof Error ? err.message : 'Conversion failed'
-      } finally {
         this.isProcessing = false
       }
     },
@@ -121,10 +157,17 @@ export const useAudioStore = defineStore('audio-converter', {
       try {
         this.isProcessing = true
         this.error = null
+        this.totalFiles = this.selectedFiles.length
+        this.loadingMessage = `Compressing ${this.totalFiles} audio files...`
 
         const { fetchFile } = await import('@ffmpeg/util')
 
-        for (const file of this.selectedFiles) {
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+          const file = this.selectedFiles[i]
+          this.currentFile = i + 1
+          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          this.loadingMessage = `Compressing ${file.name}...`
+
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
           const outputFileName = 'output' + file.name.substring(file.name.lastIndexOf('.'))
           
@@ -154,10 +197,16 @@ export const useAudioStore = defineStore('audio-converter', {
         }
 
         this.selectedFiles = []
+        this.loadingMessage = 'Compression completed!'
+        
+        setTimeout(() => {
+          this.isProcessing = false
+          this.loadingMessage = ''
+          this.loadingProgress = 0
+        }, 1000)
       } catch (err) {
         console.error('[Audio Store] Compression failed:', err)
         this.error = err instanceof Error ? err.message : 'Compression failed'
-      } finally {
         this.isProcessing = false
       }
     }

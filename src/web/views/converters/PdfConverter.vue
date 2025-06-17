@@ -1,5 +1,19 @@
 <template>
   <div class="converter-layout">
+    <!-- Loading Overlay -->
+    <LoadingSpinner
+      v-if="pdfStore.isProcessing"
+      overlay
+      size="large"
+      title="PDF Converter"
+      :message="pdfStore.loadingMessage"
+      :progress="pdfStore.loadingProgress"
+      :file-count="pdfStore.totalFiles"
+      :current-file="pdfStore.currentFile"
+      cancellable
+      @cancel="cancelConversion"
+    />
+
     <div class="converter-main">
       <h1>PDF Converter</h1>
       
@@ -10,6 +24,7 @@
         :multiple="true"
         :max-files="10"
         converter-type="pdf"
+        :disabled="pdfStore.isProcessing"
         @files-selected="handleFilesSelected"
         @files-queued="handleFilesQueued"
         @error="handleError"
@@ -25,6 +40,7 @@
         :files="pdfStore.selectedFiles"
         :use-zip="pdfStore.useZip"
         :image-format="pdfStore.imageFormat"
+        :disabled="pdfStore.isProcessing"
         @convert="handleConvert"
       />
 
@@ -45,6 +61,7 @@ import { useQueueStore } from '@web/stores/queue'
 import FileUpload from '@web/components/common/FileUpload.vue'
 import FileList from '@web/components/common/FileList.vue'
 import QueueList from '@web/components/common/QueueList.vue'
+import LoadingSpinner from '@web/components/common/LoadingSpinner.vue'
 import ConversionOptions from '@web/components/converters/document/pdf/ConversionOptions.vue'
 
 const pdfStore = usePdfStore()
@@ -77,6 +94,14 @@ function handleConvert(type: 'image' | 'text' | 'html') {
     imageFormat: pdfStore.imageFormat,
     useZip: pdfStore.useZip
   })
+}
+
+function cancelConversion() {
+  // For now, just reset the processing state
+  // In a real implementation, you'd cancel the actual conversion
+  pdfStore.isProcessing = false
+  pdfStore.loadingMessage = ''
+  pdfStore.loadingProgress = 0
 }
 </script>
 

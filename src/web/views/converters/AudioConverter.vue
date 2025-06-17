@@ -1,5 +1,19 @@
 <template>
   <div class="converter-layout">
+    <!-- Loading Overlay -->
+    <LoadingSpinner
+      v-if="audioStore.isProcessing"
+      overlay
+      size="large"
+      title="Audio Converter"
+      :message="audioStore.loadingMessage"
+      :progress="audioStore.loadingProgress"
+      :file-count="audioStore.totalFiles"
+      :current-file="audioStore.currentFile"
+      cancellable
+      @cancel="cancelConversion"
+    />
+
     <div class="converter-main">
       <h1>Audio Converter</h1>
       
@@ -11,6 +25,7 @@
           :multiple="true"
           :max-files="10"
           converter-type="audio"
+          :disabled="audioStore.isProcessing"
           @files-selected="handleFilesSelected"
           @files-queued="handleFilesQueued"
           @error="handleError"
@@ -46,6 +61,7 @@ import { useQueueStore } from '@web/stores/queue'
 import FileUpload from '@web/components/common/FileUpload.vue'
 import FileList from '@web/components/common/FileList.vue'
 import QueueList from '@web/components/common/QueueList.vue'
+import LoadingSpinner from '@web/components/common/LoadingSpinner.vue'
 import ConversionOptions from '@web/components/converters/audio/ConversionOptions.vue'
 import { onMounted } from 'vue'
 
@@ -89,6 +105,12 @@ async function handleCompress() {
   queueStore.updateQueueOptions('audio', {
     format: 'compress'
   })
+}
+
+function cancelConversion() {
+  audioStore.isProcessing = false
+  audioStore.loadingMessage = ''
+  audioStore.loadingProgress = 0
 }
 </script>
 

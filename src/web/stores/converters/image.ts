@@ -9,6 +9,10 @@ interface ImageState {
   isProcessing: boolean
   imageFormat: string
   imageQuality: number
+  loadingMessage: string
+  loadingProgress: number
+  currentFile: number
+  totalFiles: number
 }
 
 export const useImageStore = defineStore('image-converter', {
@@ -17,7 +21,11 @@ export const useImageStore = defineStore('image-converter', {
     error: null,
     isProcessing: false,
     imageFormat: 'png',
-    imageQuality: 1.0
+    imageQuality: 1.0,
+    loadingMessage: '',
+    loadingProgress: 0,
+    currentFile: 0,
+    totalFiles: 0
   }),
 
   actions: {
@@ -48,12 +56,19 @@ export const useImageStore = defineStore('image-converter', {
       try {
         this.isProcessing = true
         this.error = null
+        this.totalFiles = this.selectedFiles.length
+        this.loadingMessage = `Converting ${this.totalFiles} images to ${format.toUpperCase()}...`
 
         const converter = format === 'jpg' ? new JpgConverter() :
                         format === 'png' ? new PngConverter() :
                         new WebpConverter()
 
-        for (const file of this.selectedFiles) {
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+          const file = this.selectedFiles[i]
+          this.currentFile = i + 1
+          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          this.loadingMessage = `Converting ${file.name} to ${format.toUpperCase()}...`
+
           const result = await converter.convert(file, {
             format: `image/${format}`,
             quality: this.imageQuality
@@ -76,12 +91,18 @@ export const useImageStore = defineStore('image-converter', {
 
         // Clear files after successful conversion
         this.selectedFiles = []
+        this.loadingMessage = 'Conversion completed!'
+        
+        setTimeout(() => {
+          this.isProcessing = false
+          this.loadingMessage = ''
+          this.loadingProgress = 0
+        }, 1000)
       } catch (err) {
         console.error('[Image Converter] Conversion failed:', err)
         this.error = err instanceof Error ? err.message : 'Conversion failed'
-      } finally {
         this.isProcessing = false
       }
     }
   }
-}) 
+})

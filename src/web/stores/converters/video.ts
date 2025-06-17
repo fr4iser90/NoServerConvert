@@ -8,6 +8,10 @@ interface VideoState {
   videoFormat: string
   videoQuality: number // CRF für MP4 (0-51, lower is better)
   ffmpeg: any | null
+  loadingMessage: string
+  loadingProgress: number
+  currentFile: number
+  totalFiles: number
 }
 
 export const useVideoStore = defineStore('video-converter', {
@@ -17,7 +21,11 @@ export const useVideoStore = defineStore('video-converter', {
     isProcessing: false,
     videoFormat: 'mp4',
     videoQuality: 23, // Standard CRF Wert für gute Qualität
-    ffmpeg: null
+    ffmpeg: null,
+    loadingMessage: '',
+    loadingProgress: 0,
+    currentFile: 0,
+    totalFiles: 0
   }),
 
   actions: {
@@ -28,12 +36,27 @@ export const useVideoStore = defineStore('video-converter', {
       }
 
       try {
+        this.isProcessing = true
+        this.loadingMessage = 'Initializing video converter...'
+        this.loadingProgress = 0
+
         console.log('[Video Store] Getting FFmpeg instance from queue store...')
         const queueStore = useQueueStore()
         this.ffmpeg = await queueStore.getFFmpegInstance('video')
         console.log('[Video Store] FFmpeg instance obtained successfully')
+        
+        this.loadingMessage = 'Video converter ready!'
+        this.loadingProgress = 100
+        
+        setTimeout(() => {
+          this.isProcessing = false
+          this.loadingMessage = ''
+          this.loadingProgress = 0
+        }, 500)
       } catch (error) {
         console.error('[Video Store] Failed to get FFmpeg instance:', error)
+        this.error = `Failed to initialize video converter: ${error instanceof Error ? error.message : String(error)}`
+        this.isProcessing = false
         throw new Error(`Failed to initialize video converter: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
@@ -97,6 +120,8 @@ export const useVideoStore = defineStore('video-converter', {
         console.log('[Video Store] Starting conversion to', format)
         this.isProcessing = true
         this.error = null
+        this.totalFiles = this.selectedFiles.length
+        this.loadingMessage = `Converting ${this.totalFiles} videos to ${format.toUpperCase()}...`
 
         const { fetchFile } = await import('@ffmpeg/util')
 
@@ -107,7 +132,12 @@ export const useVideoStore = defineStore('video-converter', {
         
         console.log('[Video Store] Using FFmpeg options:', options)
 
-        for (const file of this.selectedFiles) {
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+          const file = this.selectedFiles[i]
+          this.currentFile = i + 1
+          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          this.loadingMessage = `Converting ${file.name} to ${format.toUpperCase()}...`
+          
           console.log('[Video Store] Processing file:', file.name)
           
           // Write input file to FFmpeg's virtual filesystem
@@ -167,11 +197,17 @@ export const useVideoStore = defineStore('video-converter', {
 
         // Clear files after successful conversion
         this.selectedFiles = []
+        this.loadingMessage = 'Conversion completed!'
         console.log('[Video Store] Conversion completed successfully')
+        
+        setTimeout(() => {
+          this.isProcessing = false
+          this.loadingMessage = ''
+          this.loadingProgress = 0
+        }, 1000)
       } catch (err) {
         console.error('[Video Store] Conversion failed:', err)
         this.error = err instanceof Error ? err.message : 'Conversion failed'
-      } finally {
         this.isProcessing = false
       }
     },
@@ -190,10 +226,17 @@ export const useVideoStore = defineStore('video-converter', {
       try {
         this.isProcessing = true
         this.error = null
+        this.totalFiles = this.selectedFiles.length
+        this.loadingMessage = `Extracting audio from ${this.totalFiles} videos...`
 
         const { fetchFile } = await import('@ffmpeg/util')
 
-        for (const file of this.selectedFiles) {
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+          const file = this.selectedFiles[i]
+          this.currentFile = i + 1
+          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          this.loadingMessage = `Extracting audio from ${file.name}...`
+
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
           const outputFileName = 'output.mp3'
           
@@ -222,10 +265,16 @@ export const useVideoStore = defineStore('video-converter', {
         }
 
         this.selectedFiles = []
+        this.loadingMessage = 'Audio extraction completed!'
+        
+        setTimeout(() => {
+          this.isProcessing = false
+          this.loadingMessage = ''
+          this.loadingProgress = 0
+        }, 1000)
       } catch (err) {
         console.error('[Video Store] Audio extraction failed:', err)
         this.error = err instanceof Error ? err.message : 'Audio extraction failed'
-      } finally {
         this.isProcessing = false
       }
     },
@@ -244,10 +293,17 @@ export const useVideoStore = defineStore('video-converter', {
       try {
         this.isProcessing = true
         this.error = null
+        this.totalFiles = this.selectedFiles.length
+        this.loadingMessage = `Compressing ${this.totalFiles} videos...`
 
         const { fetchFile } = await import('@ffmpeg/util')
 
-        for (const file of this.selectedFiles) {
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+          const file = this.selectedFiles[i]
+          this.currentFile = i + 1
+          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          this.loadingMessage = `Compressing ${file.name}...`
+
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
           const outputFileName = 'output' + file.name.substring(file.name.lastIndexOf('.'))
           
@@ -278,10 +334,16 @@ export const useVideoStore = defineStore('video-converter', {
         }
 
         this.selectedFiles = []
+        this.loadingMessage = 'Compression completed!'
+        
+        setTimeout(() => {
+          this.isProcessing = false
+          this.loadingMessage = ''
+          this.loadingProgress = 0
+        }, 1000)
       } catch (err) {
         console.error('[Video Store] Compression failed:', err)
         this.error = err instanceof Error ? err.message : 'Compression failed'
-      } finally {
         this.isProcessing = false
       }
     }

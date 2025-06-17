@@ -16,6 +16,10 @@ interface PdfState {
   imageFormat: string
   error: string | null
   isProcessing: boolean
+  loadingMessage: string
+  loadingProgress: number
+  currentFile: number
+  totalFiles: number
 }
 
 export const usePdfStore = defineStore('pdf', {
@@ -24,7 +28,11 @@ export const usePdfStore = defineStore('pdf', {
     useZip: true,
     imageFormat: 'png',
     error: null,
-    isProcessing: false
+    isProcessing: false,
+    loadingMessage: '',
+    loadingProgress: 0,
+    currentFile: 0,
+    totalFiles: 0
   }),
 
   actions: {
@@ -32,7 +40,16 @@ export const usePdfStore = defineStore('pdf', {
       this.error = null
       this.selectedFiles = []
 
-      for (const file of files) {
+      this.isProcessing = true
+      this.loadingMessage = 'Validating PDF files...'
+      this.loadingProgress = 0
+      this.totalFiles = files.length
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        this.currentFile = i + 1
+        this.loadingProgress = Math.round(((i + 1) / files.length) * 100)
+        
         try {
           // Validate PDF file
           const arrayBuffer = await file.arrayBuffer()
@@ -41,9 +58,14 @@ export const usePdfStore = defineStore('pdf', {
         } catch (err) {
           this.error = `Invalid PDF file: ${file.name}`
           console.error('[PDF Converter] Invalid PDF file:', err)
+          this.isProcessing = false
           return
         }
       }
+
+      this.isProcessing = false
+      this.loadingMessage = ''
+      this.loadingProgress = 0
     },
 
     removeFile(fileToRemove: File) {
@@ -53,6 +75,9 @@ export const usePdfStore = defineStore('pdf', {
     async startConversion(type: 'image' | 'text' | 'html') {
       this.error = null
       this.isProcessing = true
+      this.loadingMessage = `Converting PDFs to ${type}...`
+      this.loadingProgress = 0
+      this.totalFiles = this.selectedFiles.length
       
       try {
         if (this.selectedFiles.length === 0) return
@@ -102,6 +127,8 @@ export const usePdfStore = defineStore('pdf', {
         console.error('Conversion error:', err)
       } finally {
         this.isProcessing = false
+        this.loadingMessage = ''
+        this.loadingProgress = 0
       }
     },
 
@@ -112,7 +139,12 @@ export const usePdfStore = defineStore('pdf', {
       const zip = new JSZip()
       let hasProcessedFiles = false
 
-      for (const file of this.selectedFiles) {
+      for (let i = 0; i < this.selectedFiles.length; i++) {
+        const file = this.selectedFiles[i]
+        this.currentFile = i + 1
+        this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+        this.loadingMessage = `Processing ${file.name}...`
+
         try {
           console.log(`[PDF Store] Processing immediate file: ${file.name}`)
           const arrayBuffer = await file.arrayBuffer()
@@ -136,6 +168,7 @@ export const usePdfStore = defineStore('pdf', {
       }
 
       if (hasProcessedFiles) {
+        this.loadingMessage = 'Creating download package...'
         console.log('[PDF Store] 📦 Creating immediate bulk ZIP...')
         const zipBlob = await zip.generateAsync({ type: 'blob' })
         
@@ -234,6 +267,8 @@ export const usePdfStore = defineStore('pdf', {
       try {
         console.log('[PDF Converter] Starting single PDF to Image conversion...')
         const file = this.selectedFiles[0]
+        this.loadingMessage = `Converting ${file.name} to images...`
+        
         const arrayBuffer = await file.arrayBuffer()
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
         console.log('[PDF Converter] PDF loaded, pages:', pdf.numPages)
@@ -241,6 +276,9 @@ export const usePdfStore = defineStore('pdf', {
         const pageImages: Blob[] = []
         
         for (let i = 1; i <= pdf.numPages; i++) {
+          this.loadingProgress = Math.round((i / pdf.numPages) * 100)
+          this.loadingMessage = `Converting page ${i} of ${pdf.numPages}...`
+          
           console.log(`[PDF Converter] Converting page ${i}/${pdf.numPages}...`)
           const page = await pdf.getPage(i)
           const viewport = page.getViewport({ scale: 2.0 })
@@ -267,6 +305,8 @@ export const usePdfStore = defineStore('pdf', {
           pageImages.push(blob)
         }
 
+        this.loadingMessage = 'Preparing download...'
+
         if (this.useZip || pageImages.length > 1) {
           const zip = new JSZip()
           pageImages.forEach((blob, index) => {
@@ -287,12 +327,17 @@ export const usePdfStore = defineStore('pdf', {
 
     async convertToText() {
       const file = this.selectedFiles[0]
+      this.loadingMessage = `Extracting text from ${file.name}...`
+      
       const arrayBuffer = await file.arrayBuffer()
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
       
       let text = `=== ${file.name} ===\n\n`
       
       for (let i = 1; i <= pdf.numPages; i++) {
+        this.loadingProgress = Math.round((i / pdf.numPages) * 100)
+        this.loadingMessage = `Extracting text from page ${i} of ${pdf.numPages}...`
+        
         const page = await pdf.getPage(i)
         const content = await page.getTextContent()
         const pageText = content.items
@@ -306,6 +351,8 @@ export const usePdfStore = defineStore('pdf', {
 
     async convertToHtml() {
       const file = this.selectedFiles[0]
+      this.loadingMessage = `Converting ${file.name} to HTML...`
+      
       const arrayBuffer = await file.arrayBuffer()
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
       
@@ -325,6 +372,9 @@ export const usePdfStore = defineStore('pdf', {
       `
       
       for (let i = 1; i <= pdf.numPages; i++) {
+        this.loadingProgress = Math.round((i / pdf.numPages) * 100)
+        this.loadingMessage = `Converting page ${i} of ${pdf.numPages} to HTML...`
+        
         const page = await pdf.getPage(i)
         const content = await page.getTextContent()
         
