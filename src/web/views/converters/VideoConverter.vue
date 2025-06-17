@@ -1,17 +1,12 @@
 <template>
   <div class="converter-container">
-    <!-- Loading Overlay -->
+    <!-- Simple Loading Spinner -->
     <LoadingSpinner
       v-if="videoStore.isProcessing"
       overlay
       size="large"
       title="Video Converter"
-      :message="videoStore.loadingMessage"
-      :progress="videoStore.loadingProgress"
-      :file-count="videoStore.totalFiles"
-      :current-file="videoStore.currentFile"
-      cancellable
-      @cancel="cancelConversion"
+      message="Converting video..."
     />
 
     <div class="converter-main">
@@ -20,28 +15,25 @@
       <FileUpload
         accept="video/*,.mp4,.webm,.avi,.mov,.mkv"
         :max-size="1024 * 1024 * 1024"
-        hint="Unlimited files supported - auto-queued for batch processing"
+        hint="Select video files (max 1GB)"
         :multiple="true"
         :max-files="5"
-        converter-type="video"
         :disabled="videoStore.isProcessing"
-        @files-selected="handleFilesSelected"
-        @files-queued="handleFilesQueued"
+        @files-selected="videoStore.handleFilesSelected"
         @error="handleError"
       />
 
       <FileList
         :files="videoStore.selectedFiles"
-        title="Ready for Conversion:"
         @remove="videoStore.removeFile"
       />
 
       <ConversionOptions
         :files="videoStore.selectedFiles"
         :is-processing="videoStore.isProcessing"
-        @convert="handleConvert"
-        @extract-audio="handleExtractAudio"
-        @compress="handleCompress"
+        @convert="videoStore.startConversion"
+        @extract-audio="videoStore.extractAudio"
+        @compress="videoStore.compressVideo"
       />
 
       <div v-if="videoStore.error" class="error-message">
@@ -49,7 +41,7 @@
       </div>
     </div>
 
-    <div class="queue-sidebar">
+    <div class="queue-sidebar" v-if="queueStore.files.length > 0">
       <QueueList />
     </div>
   </div>
@@ -76,72 +68,27 @@ onMounted(async () => {
   }
 })
 
-function handleFilesSelected(files: File[]) {
-  videoStore.handleFilesSelected(files)
-}
-
-function handleFilesQueued(files: File[], converterType: string) {
-  // Add files to queue with video converter options
-  queueStore.addFiles(files, converterType, {
-    format: 'mp4',
-    quality: videoStore.videoQuality
-  })
-}
-
 function handleError(message: string) {
   videoStore.error = message
-}
-
-function handleConvert(format: 'mp4' | 'webm') {
-  videoStore.startConversion(format)
-  
-  // Update queue options
-  queueStore.updateQueueOptions('video', {
-    format,
-    quality: videoStore.videoQuality
-  })
-}
-
-function handleExtractAudio() {
-  videoStore.extractAudio()
-  
-  // Update queue options
-  queueStore.updateQueueOptions('video', {
-    format: 'extract-audio'
-  })
-}
-
-function handleCompress() {
-  videoStore.compressVideo()
-  
-  // Update queue options
-  queueStore.updateQueueOptions('video', {
-    format: 'compress'
-  })
-}
-
-function cancelConversion() {
-  videoStore.isProcessing = false
-  videoStore.loadingMessage = ''
-  videoStore.loadingProgress = 0
 }
 </script>
 
 <style lang="scss" scoped>
 .converter-container {
-  display: grid;
-  grid-template-columns: 1fr 350px;
+  display: flex;
   gap: 2rem;
-  max-width: 1600px;
-  margin: 0 auto;
+  height: 100%;
   padding: 2rem;
-  min-height: calc(100vh - 140px);
 }
 
 .converter-main {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 
   h1 {
     text-align: center;
@@ -151,12 +98,8 @@ function cancelConversion() {
 }
 
 .queue-sidebar {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  height: fit-content;
-  position: sticky;
-  top: 2rem;
+  width: 300px;
+  flex-shrink: 0;
 }
 
 .error-message {
