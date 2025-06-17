@@ -123,38 +123,42 @@ export const useQueueStore = defineStore('queue', () => {
     console.log('[Queue] 🚀 Starting queue processing...')
     isProcessing.value = true
     
-    // Process files concurrently up to maxConcurrent
-    const processingPromises: Promise<void>[] = []
-    
-    while (canProcessMore.value && processingPromises.length < maxConcurrent.value) {
-      const nextFile = pendingFiles.value[0]
-      if (!nextFile) break
+    try {
+      // 🎯 WICHTIG: Kontinuierliche Verarbeitung bis Queue leer ist!
+      while (pendingFiles.value.length > 0) {
+        console.log(`[Queue] 📋 Processing batch: ${pendingFiles.value.length} files remaining`)
+        
+        // Starte bis zu maxConcurrent Dateien gleichzeitig
+        const batch = pendingFiles.value.slice(0, maxConcurrent.value)
+        console.log(`[Queue] ⚙️ Starting batch of ${batch.length} files`)
+        
+        // Alle Dateien im Batch parallel verarbeiten
+        const processingPromises = batch.map(file => processFile(file))
+        
+        // Warten bis alle Dateien im Batch fertig sind
+        await Promise.allSettled(processingPromises)
+        
+        console.log(`[Queue] ✅ Batch completed, checking for more files...`)
+        
+        // Kurze Pause zwischen Batches für UI-Updates
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
       
-      console.log(`[Queue] ⚙️ Starting processing of: ${nextFile.file.name}`)
-      processingPromises.push(processFile(nextFile))
-    }
-    
-    // Wait for all current processing to complete
-    if (processingPromises.length > 0) {
-      await Promise.allSettled(processingPromises)
-    }
-    
-    // Check if we can process more files
-    if (canProcessMore.value) {
-      // Recursively continue processing
-      await startProcessing()
-    } else {
-      console.log('[Queue] ✅ Queue processing completed - All files auto-downloaded!')
+      console.log('[Queue] 🎉 All queue processing completed!')
+      
+    } catch (error) {
+      console.error('[Queue] ❌ Error during queue processing:', error)
+    } finally {
       isProcessing.value = false
+      console.log('[Queue] 🏁 Queue processing finished')
     }
   }
 
   async function processFile(queuedFile: QueuedFile) {
+    console.log(`[Queue] 🔄 Starting processing: ${queuedFile.file.name}`)
     updateFileStatus(queuedFile.id, 'processing', 0)
     
     try {
-      console.log(`[Queue] 🔄 Processing ${queuedFile.file.name} with ${queuedFile.converter} converter`)
-      
       // Import the appropriate converter dynamically
       let converter
       switch (queuedFile.converter) {
@@ -190,23 +194,27 @@ export const useQueueStore = defineStore('queue', () => {
           throw new Error(`Unknown converter: ${queuedFile.converter}`)
       }
       
-      // Simulate progress updates
+      // 🎯 WICHTIG: Echte Progress-Updates während Konvertierung
+      let progressValue = 10
       const progressInterval = setInterval(() => {
         const currentFile = files.value.find(f => f.id === queuedFile.id)
         if (currentFile && currentFile.status === 'processing') {
-          currentFile.progress = Math.min(currentFile.progress + 15, 90)
+          progressValue = Math.min(progressValue + 20, 90)
+          currentFile.progress = progressValue
         }
-      }, 500)
+      }, 200) // Schnellere Updates
       
+      console.log(`[Queue] 🔧 Converting ${queuedFile.file.name} with options:`, queuedFile.options)
       const result = await converter.convert(queuedFile.file, queuedFile.options)
       
       clearInterval(progressInterval)
       
       if (result.error) {
+        console.error(`[Queue] ❌ Conversion failed for ${queuedFile.file.name}:`, result.error)
         updateFileStatus(queuedFile.id, 'error', 0, result.error)
       } else {
+        console.log(`[Queue] ✅ Conversion successful for ${queuedFile.file.name} -> ${result.fileName}`)
         // 🎯 WICHTIG: Automatisch downloaden und als completed markieren!
-        console.log(`[Queue] 📦 Converting and auto-downloading: ${result.fileName}`)
         setConvertedFile(queuedFile.id, result.blob, result.fileName)
       }
       
