@@ -24,7 +24,7 @@ RUN npm run build:web
 FROM nginx:alpine
 
 # Copy built web files
-COPY --from=build-stage /app/dist/web /usr/share/nginx/html
+COPY --from=build-stage /app/src/web/dist /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
