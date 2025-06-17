@@ -25,7 +25,24 @@
     </main>
 
     <footer class="footer">
-      <p>NoServerConvert - Convert files directly in your browser</p>
+      <div class="footer-content">
+        <p>NoServerConvert - Convert files directly in your browser</p>
+        <div class="footer-badges">
+          <a 
+            href="https://bolthackathonbadge.bolt.army/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="bolt-badge"
+            title="Built with Bolt - Hackathon Project"
+          >
+            <img 
+              src="https://bolthackathonbadge.bolt.army/badge.svg" 
+              alt="Built with Bolt - Hackathon Badge"
+              class="badge-image"
+            />
+          </a>
+        </div>
+      </div>
     </footer>
   </div>
 </template>
@@ -101,10 +118,58 @@ body {
 .footer {
   background: #fff;
   padding: 1rem;
-  text-align: center;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
   font-size: 0.875rem;
   color: #666;
-  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+}
+
+.footer-badges {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bolt-badge {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.badge-image {
+  height: 32px;
+  width: auto;
+  display: block;
+  transition: all 0.3s ease;
+
+  .bolt-badge:hover & {
+    filter: brightness(1.1);
+  }
 }
 
 // Transitions
