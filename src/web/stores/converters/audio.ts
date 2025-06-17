@@ -1,10 +1,5 @@
 import { defineStore } from 'pinia'
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
 import { useQueueStore } from '@web/stores/queue'
-
-// Use the same CDN URLs wie im offiziellen Vue-Vite-Demo
-const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm'
 
 interface AudioState {
   selectedFiles: File[]
@@ -12,7 +7,7 @@ interface AudioState {
   isProcessing: boolean
   audioFormat: string
   audioQuality: number
-  ffmpeg: FFmpeg | null
+  ffmpeg: any | null
 }
 
 export const useAudioStore = defineStore('audio-converter', {
@@ -33,32 +28,12 @@ export const useAudioStore = defineStore('audio-converter', {
       }
 
       try {
-        console.log('[Audio Store] Loading FFmpeg core...')
-        this.ffmpeg = new FFmpeg()
-        
-        // Add event listeners for logging
-        this.ffmpeg.on('log', ({ message }) => {
-          console.log('[FFmpeg]', message)
-        })
-        
-        this.ffmpeg.on('progress', ({ progress, time }) => {
-          console.log('[FFmpeg] Progress:', progress, 'Time:', time)
-        })
-        
-        // Load FFmpeg with proper core URLs
-        await this.ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
-        })
-
-        if (!this.ffmpeg.loaded) {
-          throw new Error('FFmpeg failed to load properly')
-        }
-        
-        console.log('[Audio Store] FFmpeg core loaded successfully')
+        console.log('[Audio Store] Getting FFmpeg instance from queue store...')
+        const queueStore = useQueueStore()
+        this.ffmpeg = await queueStore.getFFmpegInstance('audio')
+        console.log('[Audio Store] FFmpeg instance obtained successfully')
       } catch (error) {
-        console.error('[Audio Store] Failed to load FFmpeg:', error)
+        console.error('[Audio Store] Failed to get FFmpeg instance:', error)
         throw new Error(`Failed to initialize audio converter: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
@@ -92,6 +67,8 @@ export const useAudioStore = defineStore('audio-converter', {
       try {
         this.isProcessing = true
         this.error = null
+
+        const { fetchFile } = await import('@ffmpeg/util')
 
         // FFmpeg Optionen basierend auf Format
         const options = format === 'mp3' ? ['-c:a', 'libmp3lame', '-q:a', this.audioQuality.toString()] :
@@ -145,6 +122,8 @@ export const useAudioStore = defineStore('audio-converter', {
         this.isProcessing = true
         this.error = null
 
+        const { fetchFile } = await import('@ffmpeg/util')
+
         for (const file of this.selectedFiles) {
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
           const outputFileName = 'output' + file.name.substring(file.name.lastIndexOf('.'))
@@ -183,4 +162,4 @@ export const useAudioStore = defineStore('audio-converter', {
       }
     }
   }
-}) 
+})

@@ -57,6 +57,59 @@ export const useQueueStore = defineStore('queue', () => {
     return Math.round(total / files.value.length)
   })
 
+  // 🎯 CENTRALIZED FFMPEG INSTANCE MANAGEMENT
+  async function getFFmpegInstance(converterType: 'audio' | 'video') {
+    // Check if instance already exists and is loaded
+    if (ffmpegInstances.value.has(converterType)) {
+      const instance = ffmpegInstances.value.get(converterType)
+      if (instance?.loaded) {
+        console.log(`[Queue] Returning existing FFmpeg instance for ${converterType}`)
+        return instance
+      }
+    }
+
+    try {
+      console.log(`[Queue] Creating new FFmpeg instance for ${converterType}...`)
+      
+      // Dynamic import to avoid loading FFmpeg unless needed
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+      const { toBlobURL } = await import('@ffmpeg/util')
+      
+      const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm'
+      
+      const ffmpeg = new FFmpeg()
+      
+      // Add event listeners
+      ffmpeg.on('log', ({ message }) => {
+        console.log(`[FFmpeg ${converterType}]`, message)
+      })
+      
+      ffmpeg.on('progress', ({ progress, time }) => {
+        console.log(`[FFmpeg ${converterType}] Progress:`, progress, 'Time:', time)
+      })
+      
+      // Load FFmpeg
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
+      })
+      
+      if (!ffmpeg.loaded) {
+        throw new Error('FFmpeg failed to load properly')
+      }
+      
+      ffmpegInstances.value.set(converterType, ffmpeg)
+      console.log(`[Queue] ✅ FFmpeg instance created and loaded for ${converterType}`)
+      
+      return ffmpeg
+      
+    } catch (error) {
+      console.error(`[Queue] ❌ Failed to create FFmpeg instance for ${converterType}:`, error)
+      throw error
+    }
+  }
+
   // Actions
   function addFiles(newFiles: File[], converter: string, options: Record<string, any> = {}) {
     console.log(`[Queue] Adding ${newFiles.length} files to queue for ${converter} converter`)
@@ -282,51 +335,7 @@ export const useQueueStore = defineStore('queue', () => {
 
   // 🎯 FFMPEG INITIALIZATION FOR QUEUE
   async function initFFmpegForQueue(converterType: 'audio' | 'video') {
-    if (ffmpegInstances.value.has(converterType)) {
-      console.log(`[Queue] FFmpeg already initialized for ${converterType}`)
-      return ffmpegInstances.value.get(converterType)
-    }
-
-    try {
-      console.log(`[Queue] Initializing FFmpeg for ${converterType}...`)
-      
-      // Dynamic import to avoid loading FFmpeg unless needed
-      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-      const { toBlobURL } = await import('@ffmpeg/util')
-      
-      const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm'
-      
-      const ffmpeg = new FFmpeg()
-      
-      // Add event listeners
-      ffmpeg.on('log', ({ message }) => {
-        console.log(`[Queue FFmpeg ${converterType}]`, message)
-      })
-      
-      ffmpeg.on('progress', ({ progress }) => {
-        console.log(`[Queue FFmpeg ${converterType}] Progress:`, progress)
-      })
-      
-      // Load FFmpeg
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
-      })
-      
-      if (!ffmpeg.loaded) {
-        throw new Error('FFmpeg failed to load properly')
-      }
-      
-      ffmpegInstances.value.set(converterType, ffmpeg)
-      console.log(`[Queue] ✅ FFmpeg initialized for ${converterType}`)
-      
-      return ffmpeg
-      
-    } catch (error) {
-      console.error(`[Queue] ❌ Failed to initialize FFmpeg for ${converterType}:`, error)
-      throw error
-    }
+    return await getFFmpegInstance(converterType)
   }
 
   async function startProcessing() {
@@ -727,6 +736,7 @@ export const useQueueStore = defineStore('queue', () => {
     setPriority,
     updateQueueOptions,
     setBulkDownloadMode,
-    triggerBulkDownload
+    triggerBulkDownload,
+    getFFmpegInstance // 🎯 EXPOSED for converter stores!
   }
 })

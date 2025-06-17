@@ -1,20 +1,5 @@
 import { defineStore } from 'pinia'
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
 import { useQueueStore } from '@web/stores/queue'
-
-// Use the same CDN URLs wie im offiziellen Vue-Vite-Demo
-const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm'
-
-// FFmpeg Event Types
-interface FFmpegLogEvent {
-  message: string
-}
-
-interface FFmpegProgressEvent {
-  progress: number
-  time: number
-}
 
 interface VideoState {
   selectedFiles: File[]
@@ -22,7 +7,7 @@ interface VideoState {
   isProcessing: boolean
   videoFormat: string
   videoQuality: number // CRF für MP4 (0-51, lower is better)
-  ffmpeg: FFmpeg | null
+  ffmpeg: any | null
 }
 
 export const useVideoStore = defineStore('video-converter', {
@@ -43,36 +28,12 @@ export const useVideoStore = defineStore('video-converter', {
       }
 
       try {
-        console.log('[Video Store] Loading FFmpeg core...')
-        
-        // Create FFmpeg instance
-        console.log('[Video Store] Creating FFmpeg instance...')
-        this.ffmpeg = new FFmpeg()
-        
-        // Add event listeners for logging
-        this.ffmpeg.on('log', ({ message }: FFmpegLogEvent) => {
-          console.log('[FFmpeg]', message)
-        })
-        
-        this.ffmpeg.on('progress', ({ progress, time }: FFmpegProgressEvent) => {
-          console.log('[FFmpeg] Progress:', progress, 'Time:', time)
-        })
-        
-        // Load FFmpeg with proper core URLs
-        await this.ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
-        })
-        
-        // Verify FFmpeg is loaded
-        if (!this.ffmpeg.loaded) {
-          throw new Error('FFmpeg failed to load properly')
-        }
-        
-        console.log('[Video Store] FFmpeg core loaded successfully')
+        console.log('[Video Store] Getting FFmpeg instance from queue store...')
+        const queueStore = useQueueStore()
+        this.ffmpeg = await queueStore.getFFmpegInstance('video')
+        console.log('[Video Store] FFmpeg instance obtained successfully')
       } catch (error) {
-        console.error('[Video Store] Failed to load FFmpeg:', error)
+        console.error('[Video Store] Failed to get FFmpeg instance:', error)
         throw new Error(`Failed to initialize video converter: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
@@ -111,7 +72,7 @@ export const useVideoStore = defineStore('video-converter', {
       this.selectedFiles = this.selectedFiles.filter(file => file !== fileToRemove)
       
       // Auch aus Queue entfernen falls vorhanden
-      const queuedFile = queueStore.queue.find((f) => f.file === fileToRemove)
+      const queuedFile = queueStore.files.find((f) => f.file === fileToRemove)
       if (queuedFile) {
         queueStore.removeFile(queuedFile.id)
       }
@@ -121,9 +82,9 @@ export const useVideoStore = defineStore('video-converter', {
       const queueStore = useQueueStore()
 
       // Wenn Dateien in Queue, diese verarbeiten
-      if (queueStore.hasPendingFiles) {
+      if (queueStore.pendingFiles.length > 0) {
         console.log('[Video Store] Processing queued files...')
-        await queueStore.processNextBatch()
+        await queueStore.startProcessing()
         return
       }
 
@@ -136,6 +97,8 @@ export const useVideoStore = defineStore('video-converter', {
         console.log('[Video Store] Starting conversion to', format)
         this.isProcessing = true
         this.error = null
+
+        const { fetchFile } = await import('@ffmpeg/util')
 
         // FFmpeg Optionen basierend auf Format
         const options = format === 'mp4' 
@@ -217,8 +180,8 @@ export const useVideoStore = defineStore('video-converter', {
       const queueStore = useQueueStore()
 
       // Wenn Dateien in Queue, diese verarbeiten
-      if (queueStore.hasPendingFiles) {
-        await queueStore.processNextBatch()
+      if (queueStore.pendingFiles.length > 0) {
+        await queueStore.startProcessing()
         return
       }
 
@@ -227,6 +190,8 @@ export const useVideoStore = defineStore('video-converter', {
       try {
         this.isProcessing = true
         this.error = null
+
+        const { fetchFile } = await import('@ffmpeg/util')
 
         for (const file of this.selectedFiles) {
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
@@ -269,8 +234,8 @@ export const useVideoStore = defineStore('video-converter', {
       const queueStore = useQueueStore()
 
       // Wenn Dateien in Queue, diese verarbeiten
-      if (queueStore.hasPendingFiles) {
-        await queueStore.processNextBatch()
+      if (queueStore.pendingFiles.length > 0) {
+        await queueStore.startProcessing()
         return
       }
 
@@ -279,6 +244,8 @@ export const useVideoStore = defineStore('video-converter', {
       try {
         this.isProcessing = true
         this.error = null
+
+        const { fetchFile } = await import('@ffmpeg/util')
 
         for (const file of this.selectedFiles) {
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
@@ -319,4 +286,4 @@ export const useVideoStore = defineStore('video-converter', {
       }
     }
   }
-}) 
+})
