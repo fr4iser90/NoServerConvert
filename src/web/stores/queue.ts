@@ -75,8 +75,8 @@ export const useQueueStore = defineStore('queue', () => {
       const { FFmpeg } = await import('@ffmpeg/ffmpeg')
       const { toBlobURL } = await import('@ffmpeg/util')
       
-      // 🎯 BACK TO DIRECT UNPKG - PROXY NOT WORKING!
-      const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm'
+      // 🎯 USE NGINX PROXY FOR CORS - SINGLE THREAD VERSION!
+      const baseURL = '/proxy/unpkg/@ffmpeg/core@0.12.10/dist/esm'
       
       const ffmpeg = new FFmpeg()
       
@@ -120,34 +120,32 @@ export const useQueueStore = defineStore('queue', () => {
       const wasmURL = await fetchWithCors(`${baseURL}/ffmpeg-core.wasm`, 'wasm')
       console.log(`[Queue] ✅ WASM URL ready: ${wasmURL}`)
       
-      const workerURL = await fetchWithCors(`${baseURL}/ffmpeg-core.worker.js`, 'js')
-      console.log(`[Queue] ✅ Worker URL ready: ${workerURL}`)
-      
       console.log(`[Queue] 🎯 All URLs ready, calling FFmpeg.load()...`)
       
-      // Load FFmpeg with explicit CORS
-      await ffmpeg.load({
-        coreURL,
-        wasmURL,
-        workerURL,
-      })
-      
-      console.log(`[Queue] 🎯 FFmpeg.load() called, waiting for initialization...`)
-      
-      // Wait for FFmpeg to be loaded with timeout
-      let attempts = 0
-      const maxAttempts = 30 // 30 seconds
-      while (!ffmpeg.loaded && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        attempts++
-        console.log(`[Queue] ⏳ Waiting for FFmpeg... (${attempts}/${maxAttempts})`)
+      // 🎯 TIMEOUT WRAPPER FOR FFMPEG.LOAD() - PREVENT INFINITE HANG!
+      const loadWithTimeout = (timeoutMs: number) => {
+        return new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error(`FFmpeg.load() timed out after ${timeoutMs}ms`))
+          }, timeoutMs)
+          
+          ffmpeg.load({
+            coreURL,
+            wasmURL,
+          }).then(() => {
+            clearTimeout(timeout)
+            resolve()
+          }).catch((error) => {
+            clearTimeout(timeout)
+            reject(error)
+          })
+        })
       }
       
-      if (!ffmpeg.loaded) {
-        throw new Error(`FFmpeg failed to load after ${maxAttempts} seconds`)
-      }
+      // Load FFmpeg with 15 second timeout
+      await loadWithTimeout(15000)
       
-      console.log(`[Queue] ✅ FFmpeg loaded successfully after ${attempts} seconds`)
+      console.log(`[Queue] 🎯 FFmpeg loaded successfully`)
       
       ffmpegInstances.value.set(converterType, ffmpeg)
       console.log(`[Queue] ✅ FFmpeg instance created and loaded for ${converterType}`)
