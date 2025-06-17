@@ -28,9 +28,9 @@ function handleAnimationEnd(event: AnimationEvent) {
 <style scoped>
 .bolt-badge-container {
   position: fixed;
-  top: 1rem;
+  top: 8rem; /* 🎯 WICHTIG: Mehr Abstand nach oben! */
   right: 1rem;
-  z-index: 9999;
+  z-index: 999; /* 🎯 Niedriger z-index als Navigation (100) */
 }
 
 .bolt-badge-link {
@@ -43,16 +43,33 @@ function handleAnimationEnd(event: AnimationEvent) {
 }
 
 .bolt-badge-container img {
-  width: 5rem;
-  height: 5rem;
+  width: 4rem; /* 🎯 Etwas kleiner */
+  height: 4rem;
   border-radius: 50%;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 @media (min-width: 768px) {
+  .bolt-badge-container {
+    top: 6rem; /* 🎯 Desktop: Weniger Abstand */
+  }
+  
   .bolt-badge-container img {
-    width: 7rem;
-    height: 7rem;
+    width: 5rem; /* 🎯 Desktop: Etwas größer */
+    height: 5rem;
+  }
+}
+
+/* 🎯 Mobile: Badge noch weiter nach unten */
+@media (max-width: 768px) {
+  .bolt-badge-container {
+    top: 10rem; /* 🎯 Mobile: Noch mehr Abstand wegen Navigation */
+    right: 0.5rem;
+  }
+  
+  .bolt-badge-container img {
+    width: 3.5rem; /* 🎯 Mobile: Kleiner */
+    height: 3.5rem;
   }
 }
 
