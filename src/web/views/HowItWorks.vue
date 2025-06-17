@@ -598,8 +598,3 @@ h1 {
   }
 }
 </style>
-</template>
-
-<script setup lang="ts">
-// No setup needed
-</script>
