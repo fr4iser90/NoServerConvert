@@ -75,6 +75,7 @@ export const useQueueStore = defineStore('queue', () => {
       const { FFmpeg } = await import('@ffmpeg/ffmpeg')
       const { toBlobURL } = await import('@ffmpeg/util')
       
+      // 🎯 BACK TO DIRECT UNPKG - PROXY NOT WORKING!
       const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm'
       
       const ffmpeg = new FFmpeg()
@@ -88,16 +89,65 @@ export const useQueueStore = defineStore('queue', () => {
         console.log(`[FFmpeg ${converterType}] Progress:`, progress, 'Time:', time)
       })
       
-      // Load FFmpeg
+      console.log(`[Queue] Loading FFmpeg from: ${baseURL}`)
+      
+      // 🎯 EXPLICIT CORS HANDLING FOR CREDENTIALLESS
+      const fetchWithCors = async (url: string, type: string) => {
+        console.log(`[Queue] Fetching ${url} with CORS...`)
+        const response = await fetch(url, {
+          mode: 'cors',
+          credentials: 'omit',
+          headers: {
+            'Accept': type === 'wasm' ? 'application/wasm' : 'text/javascript'
+          }
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${url}: ${response.status}`)
+        }
+        console.log(`[Queue] ✅ Fetched ${url} successfully`)
+        const blob = await response.blob()
+        console.log(`[Queue] ✅ Created blob for ${url}`)
+        const objectURL = URL.createObjectURL(blob)
+        console.log(`[Queue] ✅ Created object URL for ${url}`)
+        return objectURL
+      }
+      
+      console.log(`[Queue] 🎯 Starting to fetch FFmpeg files...`)
+      
+      const coreURL = await fetchWithCors(`${baseURL}/ffmpeg-core.js`, 'js')
+      console.log(`[Queue] ✅ Core URL ready: ${coreURL}`)
+      
+      const wasmURL = await fetchWithCors(`${baseURL}/ffmpeg-core.wasm`, 'wasm')
+      console.log(`[Queue] ✅ WASM URL ready: ${wasmURL}`)
+      
+      const workerURL = await fetchWithCors(`${baseURL}/ffmpeg-core.worker.js`, 'js')
+      console.log(`[Queue] ✅ Worker URL ready: ${workerURL}`)
+      
+      console.log(`[Queue] 🎯 All URLs ready, calling FFmpeg.load()...`)
+      
+      // Load FFmpeg with explicit CORS
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
+        coreURL,
+        wasmURL,
+        workerURL,
       })
       
-      if (!ffmpeg.loaded) {
-        throw new Error('FFmpeg failed to load properly')
+      console.log(`[Queue] 🎯 FFmpeg.load() called, waiting for initialization...`)
+      
+      // Wait for FFmpeg to be loaded with timeout
+      let attempts = 0
+      const maxAttempts = 30 // 30 seconds
+      while (!ffmpeg.loaded && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        attempts++
+        console.log(`[Queue] ⏳ Waiting for FFmpeg... (${attempts}/${maxAttempts})`)
       }
+      
+      if (!ffmpeg.loaded) {
+        throw new Error(`FFmpeg failed to load after ${maxAttempts} seconds`)
+      }
+      
+      console.log(`[Queue] ✅ FFmpeg loaded successfully after ${attempts} seconds`)
       
       ffmpegInstances.value.set(converterType, ffmpeg)
       console.log(`[Queue] ✅ FFmpeg instance created and loaded for ${converterType}`)
