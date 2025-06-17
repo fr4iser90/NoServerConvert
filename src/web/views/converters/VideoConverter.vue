@@ -6,8 +6,13 @@
       <FileUpload
         accept="video/*,.mp4,.webm,.avi,.mov,.mkv"
         :max-size="1024 * 1024 * 1024"
-        hint="Select video files (max 1GB)"
-        @files-selected="videoStore.handleFilesSelected"
+        hint="Unlimited files supported - auto-queued for batch processing"
+        :multiple="true"
+        :max-files="5"
+        converter-type="video"
+        @files-selected="handleFilesSelected"
+        @files-queued="handleFilesQueued"
+        @error="handleError"
       />
 
       <FileList
@@ -19,9 +24,9 @@
       <ConversionOptions
         :files="videoStore.selectedFiles"
         :is-processing="videoStore.isProcessing"
-        @convert="videoStore.startConversion"
-        @extract-audio="videoStore.extractAudio"
-        @compress="videoStore.compressVideo"
+        @convert="handleConvert"
+        @extract-audio="handleExtractAudio"
+        @compress="handleCompress"
       />
 
       <div v-if="videoStore.error" class="error-message">
@@ -29,7 +34,7 @@
       </div>
     </div>
 
-    <div class="queue-sidebar" v-if="queueStore.queue.length > 0">
+    <div class="queue-sidebar">
       <QueueList />
     </div>
   </div>
@@ -54,24 +59,67 @@ onMounted(async () => {
     console.error('Failed to initialize video converter:', error)
   }
 })
+
+function handleFilesSelected(files: File[]) {
+  videoStore.handleFilesSelected(files)
+}
+
+function handleFilesQueued(files: File[], converterType: string) {
+  // Add files to queue with video converter options
+  queueStore.addFiles(files, converterType, {
+    format: 'mp4',
+    quality: videoStore.videoQuality
+  })
+}
+
+function handleError(message: string) {
+  videoStore.error = message
+}
+
+function handleConvert(format: 'mp4' | 'webm') {
+  videoStore.startConversion(format)
+  
+  // Update queue options
+  queueStore.updateQueueOptions('video', {
+    format,
+    quality: videoStore.videoQuality
+  })
+}
+
+function handleExtractAudio() {
+  videoStore.extractAudio()
+  
+  // Update queue options
+  queueStore.updateQueueOptions('video', {
+    format: 'extract-audio'
+  })
+}
+
+function handleCompress() {
+  videoStore.compressVideo()
+  
+  // Update queue options
+  queueStore.updateQueueOptions('video', {
+    format: 'compress'
+  })
+}
 </script>
 
 <style lang="scss" scoped>
 .converter-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 350px;
   gap: 2rem;
-  height: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
   padding: 2rem;
+  min-height: calc(100vh - 140px);
 }
 
 .converter-main {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
 
   h1 {
     text-align: center;
@@ -81,8 +129,12 @@ onMounted(async () => {
 }
 
 .queue-sidebar {
-  width: 300px;
-  flex-shrink: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
 }
 
 .error-message {
@@ -92,4 +144,4 @@ onMounted(async () => {
   border-radius: 4px;
   text-align: center;
 }
-</style> 
+</style>

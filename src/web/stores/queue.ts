@@ -52,6 +52,8 @@ export const useQueueStore = defineStore('queue', () => {
 
   // Actions
   function addFiles(newFiles: File[], converter: string, options: Record<string, any> = {}) {
+    console.log(`[Queue] Adding ${newFiles.length} files to queue for ${converter} converter`)
+    
     const queuedFiles = newFiles.map(file => ({
       id: crypto.randomUUID(),
       file,
@@ -64,9 +66,11 @@ export const useQueueStore = defineStore('queue', () => {
     }))
     
     files.value.push(...queuedFiles)
+    console.log(`[Queue] Total files in queue: ${files.value.length}`)
     
     // Auto-start processing if not already running
     if (!isProcessing.value) {
+      console.log('[Queue] Auto-starting queue processing')
       startProcessing()
     }
   }
@@ -74,6 +78,7 @@ export const useQueueStore = defineStore('queue', () => {
   function removeFile(id: string) {
     const index = files.value.findIndex(f => f.id === id)
     if (index !== -1) {
+      console.log(`[Queue] Removing file: ${files.value[index].file.name}`)
       files.value.splice(index, 1)
     }
   }
@@ -81,6 +86,7 @@ export const useQueueStore = defineStore('queue', () => {
   function updateFileStatus(id: string, status: QueuedFile['status'], progress = 0, error?: string) {
     const file = files.value.find(f => f.id === id)
     if (file) {
+      console.log(`[Queue] Updating ${file.file.name}: ${file.status} -> ${status} (${progress}%)`)
       file.status = status
       file.progress = progress
       if (error) file.error = error
@@ -97,23 +103,41 @@ export const useQueueStore = defineStore('queue', () => {
       file.status = 'completed'
       file.progress = 100
       file.completedAt = new Date()
+      console.log(`[Queue] Conversion completed: ${file.file.name} -> ${name}`)
     }
   }
 
   async function startProcessing() {
-    if (isProcessing.value) return
+    if (isProcessing.value) {
+      console.log('[Queue] Already processing, skipping start')
+      return
+    }
     
+    console.log('[Queue] Starting queue processing...')
     isProcessing.value = true
     
-    while (canProcessMore.value) {
+    // Process files concurrently up to maxConcurrent
+    const processingPromises: Promise<void>[] = []
+    
+    while (canProcessMore.value && processingPromises.length < maxConcurrent.value) {
       const nextFile = pendingFiles.value[0]
       if (!nextFile) break
       
-      processFile(nextFile)
+      console.log(`[Queue] Starting processing of: ${nextFile.file.name}`)
+      processingPromises.push(processFile(nextFile))
     }
     
-    // Check if we're done
-    if (processingFiles.value.length === 0) {
+    // Wait for all current processing to complete
+    if (processingPromises.length > 0) {
+      await Promise.allSettled(processingPromises)
+    }
+    
+    // Check if we can process more files
+    if (canProcessMore.value) {
+      // Recursively continue processing
+      await startProcessing()
+    } else {
+      console.log('[Queue] Queue processing completed')
       isProcessing.value = false
     }
   }
@@ -122,19 +146,30 @@ export const useQueueStore = defineStore('queue', () => {
     updateFileStatus(queuedFile.id, 'processing', 0)
     
     try {
-      // Import the appropriate converter
-      const { PdfConverter } = await import('@shared/converters/modules/document/pdf/PdfConverter')
-      const { JpgConverter } = await import('@shared/converters/modules/image/basic/jpg/JpgConverter')
-      // Add other converters as needed
+      console.log(`[Queue] Processing ${queuedFile.file.name} with ${queuedFile.converter} converter`)
       
+      // Import the appropriate converter dynamically
       let converter
       switch (queuedFile.converter) {
-        case 'pdf':
+        case 'pdf': {
+          const { PdfConverter } = await import('@shared/converters/modules/document/pdf/PdfConverter')
           converter = new PdfConverter()
           break
-        case 'jpg':
+        }
+        case 'image': {
+          const { JpgConverter } = await import('@shared/converters/modules/image/basic/jpg/JpgConverter')
           converter = new JpgConverter()
           break
+        }
+        case 'audio': {
+          // For audio/video, we'll need to handle FFmpeg differently
+          console.log('[Queue] Audio/Video processing not yet implemented in queue')
+          throw new Error('Audio/Video queue processing not yet implemented')
+        }
+        case 'video': {
+          console.log('[Queue] Video processing not yet implemented in queue')
+          throw new Error('Video queue processing not yet implemented')
+        }
         default:
           throw new Error(`Unknown converter: ${queuedFile.converter}`)
       }
@@ -143,7 +178,7 @@ export const useQueueStore = defineStore('queue', () => {
       const progressInterval = setInterval(() => {
         const currentFile = files.value.find(f => f.id === queuedFile.id)
         if (currentFile && currentFile.status === 'processing') {
-          currentFile.progress = Math.min(currentFile.progress + 10, 90)
+          currentFile.progress = Math.min(currentFile.progress + 15, 90)
         }
       }, 500)
       
@@ -158,33 +193,30 @@ export const useQueueStore = defineStore('queue', () => {
       }
       
     } catch (error) {
+      console.error(`[Queue] Error processing ${queuedFile.file.name}:`, error)
       updateFileStatus(queuedFile.id, 'error', 0, error instanceof Error ? error.message : 'Unknown error')
-    }
-    
-    // Continue processing if there are more files
-    if (canProcessMore.value) {
-      const nextFile = pendingFiles.value[0]
-      if (nextFile) {
-        processFile(nextFile)
-      }
-    } else if (processingFiles.value.length === 0) {
-      isProcessing.value = false
     }
   }
 
   function pauseProcessing() {
+    console.log('[Queue] Pausing processing')
     isProcessing.value = false
   }
 
   function clearCompleted() {
+    const completedCount = completedFiles.value.length
     files.value = files.value.filter(f => f.status !== 'completed')
+    console.log(`[Queue] Cleared ${completedCount} completed files`)
   }
 
   function clearErrors() {
+    const errorCount = errorFiles.value.length
     files.value = files.value.filter(f => f.status !== 'error')
+    console.log(`[Queue] Cleared ${errorCount} error files`)
   }
 
   function clearAll() {
+    console.log('[Queue] Clearing all files')
     files.value = []
     isProcessing.value = false
   }
@@ -192,6 +224,7 @@ export const useQueueStore = defineStore('queue', () => {
   function retryFile(id: string) {
     const file = files.value.find(f => f.id === id)
     if (file && file.status === 'error') {
+      console.log(`[Queue] Retrying file: ${file.file.name}`)
       file.status = 'pending'
       file.progress = 0
       file.error = undefined
@@ -206,7 +239,17 @@ export const useQueueStore = defineStore('queue', () => {
     const file = files.value.find(f => f.id === id)
     if (file) {
       file.priority = Math.max(1, Math.min(10, priority))
+      console.log(`[Queue] Set priority for ${file.file.name}: ${file.priority}`)
     }
+  }
+
+  function updateQueueOptions(converter: string, newOptions: Record<string, any>) {
+    console.log(`[Queue] Updating options for ${converter} files:`, newOptions)
+    files.value
+      .filter(f => f.converter === converter && f.status === 'pending')
+      .forEach(f => {
+        f.options = { ...f.options, ...newOptions }
+      })
   }
 
   return {
@@ -235,6 +278,7 @@ export const useQueueStore = defineStore('queue', () => {
     clearErrors,
     clearAll,
     retryFile,
-    setPriority
+    setPriority,
+    updateQueueOptions
   }
 })

@@ -5,39 +5,75 @@
       
       <FileUpload
         accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff"
-        hint="Maximum file size: 50MB"
+        hint="Unlimited files supported - auto-queued for batch processing"
         :max-size="50 * 1024 * 1024"
         :multiple="true"
         :max-files="10"
-        @files-selected="imageStore.handleFilesSelected"
+        converter-type="image"
+        @files-selected="handleFilesSelected"
+        @files-queued="handleFilesQueued"
+        @error="handleError"
       />
 
       <FileList 
         :files="imageStore.selectedFiles"
-        title="Selected Files:"
+        title="Ready for Conversion:"
         @remove="imageStore.removeFile"
       />
 
       <ConversionOptions
         :files="imageStore.selectedFiles"
         :is-processing="imageStore.isProcessing"
-        @convert="imageStore.startConversion"
+        @convert="handleConvert"
       />
 
       <div v-if="imageStore.error" class="error-message">
         {{ imageStore.error }}
       </div>
     </div>
+
+    <aside class="queue-sidebar">
+      <QueueList />
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
 import FileUpload from '@web/components/common/FileUpload.vue'
 import FileList from '@web/components/common/FileList.vue'
+import QueueList from '@web/components/common/QueueList.vue'
 import ConversionOptions from '@web/components/converters/image/basic/ConversionOptions.vue'
 import { useImageStore } from '@web/stores/converters/image'
+import { useQueueStore } from '@web/stores/queue'
 
 const imageStore = useImageStore()
+const queueStore = useQueueStore()
+
+function handleFilesSelected(files: File[]) {
+  imageStore.handleFilesSelected(files)
+}
+
+function handleFilesQueued(files: File[], converterType: string) {
+  // Add files to queue with image converter options
+  queueStore.addFiles(files, converterType, {
+    format: 'png',
+    quality: imageStore.imageQuality
+  })
+}
+
+function handleError(message: string) {
+  imageStore.error = message
+}
+
+function handleConvert(format: 'jpg' | 'png' | 'webp') {
+  imageStore.startConversion(format)
+  
+  // Update queue options
+  queueStore.updateQueueOptions('image', {
+    format,
+    quality: imageStore.imageQuality
+  })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -67,4 +103,13 @@ const imageStore = useImageStore()
   border-radius: 4px;
   text-align: center;
 }
-</style> 
+
+.queue-sidebar {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
+}
+</style>

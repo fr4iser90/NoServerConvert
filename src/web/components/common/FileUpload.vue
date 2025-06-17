@@ -43,9 +43,12 @@
         </p>
         <p class="secondary-text">
           {{ formatAcceptedFormats() }}
-          {{ multiple ? ` (up to ${maxFiles} files)` : '' }}
+          {{ multiple ? ` (unlimited files - auto-queued)` : '' }}
         </p>
         <p v-if="hint" class="hint-text">{{ hint }}</p>
+        <p v-if="multiple" class="queue-info">
+          📋 Files over {{ maxFiles || 10 }} will be automatically queued for batch processing
+        </p>
       </div>
     </div>
 
@@ -74,10 +77,12 @@ const props = defineProps<{
   maxFiles?: number
   hint?: string
   disabled?: boolean
+  converterType?: string // Add converter type for queue
 }>()
 
 const emit = defineEmits<{
   (e: 'files-selected', files: File[]): void
+  (e: 'files-queued', files: File[], converterType: string): void
   (e: 'error', message: string): void
 }>()
 
@@ -148,25 +153,26 @@ async function processFiles(files: File[]) {
   error.value = null
   
   try {
-    // Validate file count
-    if (props.maxFiles && files.length > props.maxFiles) {
-      throw new Error(`Too many files. Maximum ${props.maxFiles} files allowed.`)
-    }
-
-    // Validate each file
+    // Validate each file individually
     const validFiles: File[] = []
+    const invalidFiles: string[] = []
+    
     for (const file of files) {
       try {
         validateFile(file)
         validFiles.push(file)
       } catch (fileError) {
-        ErrorHandler.handleFileError(file, fileError)
-        emit('error', `${file.name}: ${fileError instanceof Error ? fileError.message : 'Invalid file'}`)
+        invalidFiles.push(`${file.name}: ${fileError instanceof Error ? fileError.message : 'Invalid file'}`)
       }
     }
 
     if (validFiles.length === 0) {
       throw new Error('No valid files selected')
+    }
+
+    // Show any invalid files as warnings
+    if (invalidFiles.length > 0) {
+      emit('error', `Some files were skipped: ${invalidFiles.join(', ')}`)
     }
 
     // Show progress for large files
@@ -176,7 +182,7 @@ async function processFiles(files: File[]) {
       
       // Simulate processing progress
       const interval = setInterval(() => {
-        progress.value += 10
+        progress.value += 20
         if (progress.value >= 100) {
           clearInterval(interval)
           isProcessing.value = false
@@ -185,7 +191,30 @@ async function processFiles(files: File[]) {
       }, 100)
     }
 
-    emit('files-selected', validFiles)
+    // Auto-split files: immediate processing vs queue
+    const maxImmediateFiles = props.maxFiles || 10
+    
+    if (validFiles.length <= maxImmediateFiles) {
+      // Process immediately
+      emit('files-selected', validFiles)
+    } else {
+      // Split: first batch for immediate processing, rest to queue
+      const immediateFiles = validFiles.slice(0, maxImmediateFiles)
+      const queuedFiles = validFiles.slice(maxImmediateFiles)
+      
+      // Emit immediate files
+      emit('files-selected', immediateFiles)
+      
+      // Emit queued files if we have a converter type
+      if (queuedFiles.length > 0 && props.converterType) {
+        emit('files-queued', queuedFiles, props.converterType)
+        
+        // Show user feedback
+        setTimeout(() => {
+          emit('error', `✅ ${immediateFiles.length} files ready for conversion, ${queuedFiles.length} files added to queue`)
+        }, 500)
+      }
+    }
     
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'File processing failed'
@@ -352,8 +381,18 @@ function triggerFileSelect() {
   .hint-text {
     font-size: 0.75rem;
     color: #a0aec0;
-    margin: 0;
+    margin: 0 0 0.5rem;
     font-style: italic;
+  }
+
+  .queue-info {
+    font-size: 0.75rem;
+    color: #38b2ac;
+    margin: 0;
+    background: #e6fffa;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #b2f5ea;
   }
 }
 

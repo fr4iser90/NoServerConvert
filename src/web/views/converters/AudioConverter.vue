@@ -6,11 +6,13 @@
       <div class="upload-section">
         <FileUpload
           accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac"
-          hint="Maximum file size: 100MB"
+          hint="Unlimited files supported - auto-queued for batch processing"
           :max-size="100 * 1024 * 1024"
           :multiple="true"
           :max-files="10"
-          @file-selected="handleFilesSelected"
+          converter-type="audio"
+          @files-selected="handleFilesSelected"
+          @files-queued="handleFilesQueued"
           @error="handleError"
         />
       </div>
@@ -40,13 +42,15 @@
 
 <script setup lang="ts">
 import { useAudioStore } from '@web/stores/converters/audio'
+import { useQueueStore } from '@web/stores/queue'
 import FileUpload from '@web/components/common/FileUpload.vue'
 import FileList from '@web/components/common/FileList.vue'
-import QueueList from '@web/components/queue/QueueList.vue'
+import QueueList from '@web/components/common/QueueList.vue'
 import ConversionOptions from '@web/components/converters/audio/ConversionOptions.vue'
 import { onMounted } from 'vue'
 
 const audioStore = useAudioStore()
+const queueStore = useQueueStore()
 
 onMounted(async () => {
   await audioStore.initFFmpeg()
@@ -56,16 +60,35 @@ function handleFilesSelected(files: File[]) {
   audioStore.handleFilesSelected(files)
 }
 
+function handleFilesQueued(files: File[], converterType: string) {
+  // Add files to queue with audio converter options
+  queueStore.addFiles(files, converterType, {
+    format: 'mp3',
+    quality: audioStore.audioQuality
+  })
+}
+
 function handleError(message: string) {
   audioStore.error = message
 }
 
 async function handleConvert(format: 'mp3' | 'wav' | 'ogg') {
   await audioStore.startConversion(format)
+  
+  // Update queue options
+  queueStore.updateQueueOptions('audio', {
+    format,
+    quality: audioStore.audioQuality
+  })
 }
 
 async function handleCompress() {
   await audioStore.compressAudio()
+  
+  // Update queue options
+  queueStore.updateQueueOptions('audio', {
+    format: 'compress'
+  })
 }
 </script>
 
@@ -113,4 +136,4 @@ async function handleCompress() {
   position: sticky;
   top: 2rem;
 }
-</style> 
+</style>
