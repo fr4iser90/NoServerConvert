@@ -8,6 +8,29 @@
       </div>
     </div>
 
+    <!-- 🎯 BULK DOWNLOAD CONTROLS -->
+    <div class="bulk-controls">
+      <div class="bulk-mode">
+        <label>Download Mode:</label>
+        <select 
+          :value="queueStore.bulkDownloadMode" 
+          @change="queueStore.setBulkDownloadMode($event.target.value)"
+          class="mode-select"
+        >
+          <option value="pack10">📦 10er-Pakete (auto)</option>
+          <option value="all">📋 Alle zusammen (am Ende)</option>
+        </select>
+      </div>
+      
+      <button 
+        v-if="queueStore.completedFiles.filter(f => !f.downloadedAt).length > 0"
+        @click="queueStore.triggerBulkDownload()"
+        class="bulk-download-btn"
+      >
+        📥 Download {{ queueStore.completedFiles.filter(f => !f.downloadedAt).length }} Files
+      </button>
+    </div>
+
     <div class="queue-controls">
       <button 
         v-if="queueStore.isProcessing"
@@ -55,6 +78,10 @@
             <span class="file-type">{{ file.converter.toUpperCase() }}</span>
             <span class="status-badge" :class="file.status">
               {{ getStatusText(file.status) }}
+            </span>
+            <!-- 🎯 DOWNLOAD STATUS -->
+            <span v-if="file.status === 'completed' && file.downloadedAt" class="download-badge">
+              📥 Downloaded
             </span>
           </div>
         </div>
@@ -111,6 +138,20 @@
       <p>No files in queue</p>
       <p class="hint">Upload files to start converting</p>
     </div>
+
+    <!-- 🎯 BULK DOWNLOAD INFO -->
+    <div v-if="queueStore.files.length > 0" class="bulk-info">
+      <div class="info-item">
+        <strong>Download Mode:</strong> 
+        {{ queueStore.bulkDownloadMode === 'pack10' ? '📦 10er-Pakete (automatisch)' : '📋 Alle am Ende' }}
+      </div>
+      <div v-if="queueStore.bulkDownloadMode === 'pack10'" class="info-item">
+        💡 Alle 10 fertigen Dateien wird automatisch ein ZIP-Paket heruntergeladen
+      </div>
+      <div v-else class="info-item">
+        💡 Alle Dateien werden am Ende als ein großes ZIP heruntergeladen
+      </div>
+    </div>
   </div>
 </template>
 
@@ -166,6 +207,65 @@ const formatFileSize = (bytes: number): string => {
   gap: 1rem;
   font-size: 0.875rem;
   color: #666;
+}
+
+/* 🎯 BULK CONTROLS STYLING */
+.bulk-controls {
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bulk-mode {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+
+  label {
+    color: #2c3e50;
+    font-weight: 500;
+  }
+}
+
+.mode-select {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  font-size: 0.875rem;
+  color: #2c3e50;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #42b883;
+    box-shadow: 0 0 0 2px rgba(66, 184, 131, 0.2);
+  }
+}
+
+.bulk-download-btn {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #42b883, #3aa876);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(66, 184, 131, 0.3);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(66, 184, 131, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 }
 
 .queue-controls {
@@ -274,6 +374,7 @@ const formatFileSize = (bytes: number): string => {
   align-items: center;
   font-size: 0.75rem;
   color: #666;
+  flex-wrap: wrap;
 }
 
 .status-badge {
@@ -288,6 +389,16 @@ const formatFileSize = (bytes: number): string => {
   &.completed { background: #d1e7dd; color: #0f5132; }
   &.error { background: #f8d7da; color: #842029; }
   &.paused { background: #fff3cd; color: #664d03; }
+}
+
+/* 🎯 DOWNLOAD BADGE */
+.download-badge {
+  background: #42b883;
+  color: white;
+  padding: 0.125rem 0.375rem;
+  border-radius: 10px;
+  font-size: 0.625rem;
+  font-weight: 500;
 }
 
 .progress-section {
@@ -378,6 +489,23 @@ const formatFileSize = (bytes: number): string => {
   .hint {
     font-size: 0.875rem;
     margin-top: 0.5rem;
+  }
+}
+
+/* 🎯 BULK INFO STYLING */
+.bulk-info {
+  padding: 0.75rem 1rem;
+  background: #e6fffa;
+  border-top: 1px solid #b2f5ea;
+  font-size: 0.75rem;
+  color: #234e52;
+}
+
+.info-item {
+  margin-bottom: 0.25rem;
+
+  &:last-child {
+    margin-bottom: 0;
   }
 }
 </style>

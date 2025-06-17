@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import JSZip from 'jszip'
 
 export interface QueuedFile {
   id: string
@@ -22,6 +23,7 @@ export const useQueueStore = defineStore('queue', () => {
   const isProcessing = ref(false)
   const maxConcurrent = ref(3) // Process 3 files simultaneously
   const maxMemoryUsage = ref(1024 * 1024 * 1024) // 1GB limit
+  const bulkDownloadMode = ref<'pack10' | 'all'>('pack10') // 🎯 BULK DOWNLOAD MODE!
 
   // Computed properties
   const pendingFiles = computed(() => 
@@ -49,6 +51,9 @@ export const useQueueStore = defineStore('queue', () => {
     const total = files.value.reduce((sum, file) => sum + file.progress, 0)
     return Math.round(total / files.value.length)
   })
+
+  // 🎯 BULK DOWNLOAD COLLECTIONS
+  const completedBulks = ref<{ id: string, files: QueuedFile[], downloadedAt?: Date }[]>([])
 
   // Actions
   function addFiles(newFiles: File[], converter: string, options: Record<string, any> = {}) {
@@ -98,20 +103,142 @@ export const useQueueStore = defineStore('queue', () => {
       file.progress = 100
       file.completedAt = new Date()
       
-      // 🎯 WICHTIG: Automatischer Download für Queue-Dateien!
       console.log(`[Queue] ✅ Conversion completed: ${file.file.name} -> ${name}`)
-      console.log(`[Queue] 📥 Auto-downloading queue file: ${name}`)
       
-      // Sofort downloaden
-      const url = URL.createObjectURL(blob)
+      // 🎯 WICHTIG: BULK DOWNLOAD LOGIC!
+      checkForBulkDownload()
+    }
+  }
+
+  // 🎯 BULK DOWNLOAD CHECKER
+  function checkForBulkDownload() {
+    const completed = completedFiles.value.filter(f => !f.downloadedAt)
+    
+    if (bulkDownloadMode.value === 'pack10') {
+      // Download in 10er-Paketen
+      if (completed.length >= 10) {
+        const pack = completed.slice(0, 10)
+        console.log(`[Queue] 📦 Creating 10-pack download with ${pack.length} files`)
+        downloadBulk(pack, '10-pack')
+        
+        // Mark as downloaded
+        pack.forEach(file => {
+          file.downloadedAt = new Date()
+        })
+      }
+    } else if (bulkDownloadMode.value === 'all') {
+      // Warten bis alle fertig sind, dann alle downloaden
+      if (pendingFiles.value.length === 0 && processingFiles.value.length === 0 && completed.length > 0) {
+        console.log(`[Queue] 📦 Creating complete download with ${completed.length} files`)
+        downloadBulk(completed, 'complete')
+        
+        // Mark as downloaded
+        completed.forEach(file => {
+          file.downloadedAt = new Date()
+        })
+      }
+    }
+  }
+
+  // 🎯 BULK DOWNLOAD FUNCTION
+  async function downloadBulk(files: QueuedFile[], type: string) {
+    try {
+      console.log(`[Queue] 🎯 Starting ${type} bulk download for ${files.length} files`)
+      
+      if (files.length === 1) {
+        // Single file - direct download
+        const file = files[0]
+        if (file.convertedBlob && file.convertedName) {
+          const url = URL.createObjectURL(file.convertedBlob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = file.convertedName
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+          console.log(`[Queue] 📥 Downloaded single file: ${file.convertedName}`)
+        }
+        return
+      }
+
+      // Multiple files - create ZIP
+      const zip = new JSZip()
+      let validFiles = 0
+
+      files.forEach((file, index) => {
+        if (file.convertedBlob && file.convertedName) {
+          // Avoid name conflicts
+          const fileName = files.filter((f, i) => i < index && f.convertedName === file.convertedName).length > 0
+            ? `${file.convertedName.split('.')[0]}_${index + 1}.${file.convertedName.split('.').pop()}`
+            : file.convertedName
+          
+          zip.file(fileName, file.convertedBlob)
+          validFiles++
+        }
+      })
+
+      if (validFiles === 0) {
+        console.warn('[Queue] ⚠️ No valid files to download')
+        return
+      }
+
+      console.log(`[Queue] 📦 Creating ZIP with ${validFiles} files...`)
+      const zipBlob = await zip.generateAsync({ 
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      })
+
+      // Download ZIP
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
+      const zipName = `converted_${type}_${timestamp}.zip`
+      
+      const url = URL.createObjectURL(zipBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = name || `converted-${file.file.name}`
+      a.download = zipName
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+
+      console.log(`[Queue] 🎉 Bulk download completed: ${zipName} (${validFiles} files)`)
+      
+      // Show user notification
+      showBulkDownloadNotification(validFiles, zipName)
+      
+    } catch (error) {
+      console.error('[Queue] ❌ Bulk download failed:', error)
     }
+  }
+
+  function showBulkDownloadNotification(fileCount: number, zipName: string) {
+    // Create temporary notification
+    const notification = document.createElement('div')
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      font-family: system-ui;
+      font-weight: 500;
+    `
+    notification.innerHTML = `
+      🎉 Bulk Download Complete!<br>
+      📦 ${fileCount} files in ${zipName}
+    `
+    
+    document.body.appendChild(notification)
+    
+    setTimeout(() => {
+      notification.remove()
+    }, 5000)
   }
 
   async function startProcessing() {
@@ -145,6 +272,11 @@ export const useQueueStore = defineStore('queue', () => {
       }
       
       console.log('[Queue] 🎉 All queue processing completed!')
+      
+      // 🎯 FINAL BULK DOWNLOAD CHECK
+      if (bulkDownloadMode.value === 'all') {
+        checkForBulkDownload()
+      }
       
     } catch (error) {
       console.error('[Queue] ❌ Error during queue processing:', error)
@@ -214,7 +346,7 @@ export const useQueueStore = defineStore('queue', () => {
         updateFileStatus(queuedFile.id, 'error', 0, result.error)
       } else {
         console.log(`[Queue] ✅ Conversion successful for ${queuedFile.file.name} -> ${result.fileName}`)
-        // 🎯 WICHTIG: Automatisch downloaden und als completed markieren!
+        // 🎯 WICHTIG: Nur als completed markieren, KEIN einzelner Download!
         setConvertedFile(queuedFile.id, result.blob, result.fileName)
       }
       
@@ -278,12 +410,30 @@ export const useQueueStore = defineStore('queue', () => {
       })
   }
 
+  // 🎯 BULK DOWNLOAD MODE SETTER
+  function setBulkDownloadMode(mode: 'pack10' | 'all') {
+    bulkDownloadMode.value = mode
+    console.log(`[Queue] 📦 Bulk download mode set to: ${mode}`)
+  }
+
+  // 🎯 MANUAL BULK DOWNLOAD TRIGGER
+  function triggerBulkDownload() {
+    const completed = completedFiles.value.filter(f => !f.downloadedAt)
+    if (completed.length > 0) {
+      downloadBulk(completed, 'manual')
+      completed.forEach(file => {
+        file.downloadedAt = new Date()
+      })
+    }
+  }
+
   return {
     // State
     files,
     isProcessing,
     maxConcurrent,
     maxMemoryUsage,
+    bulkDownloadMode,
     
     // Computed
     pendingFiles,
@@ -305,6 +455,8 @@ export const useQueueStore = defineStore('queue', () => {
     clearAll,
     retryFile,
     setPriority,
-    updateQueueOptions
+    updateQueueOptions,
+    setBulkDownloadMode,
+    triggerBulkDownload
   }
 })
