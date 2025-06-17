@@ -24,22 +24,12 @@
         ▶️ Start
       </button>
       
-      <!-- Download All Button -->
-      <button 
-        v-if="queueStore.completedFiles.length > 0"
-        @click="downloadAllCompleted"
-        class="control-btn download-all"
-        :disabled="isDownloadingAll"
-      >
-        {{ isDownloadingAll ? '📦 Creating ZIP...' : `📥 Download All (${queueStore.completedFiles.length})` }}
-      </button>
-      
       <button 
         v-if="queueStore.completedFiles.length > 0"
         @click="queueStore.clearCompleted()"
         class="control-btn clear"
       >
-        🗑️ Clear Completed
+        🗑️ Clear Completed ({{ queueStore.completedFiles.length }})
       </button>
       
       <button 
@@ -47,7 +37,7 @@
         @click="queueStore.clearErrors()"
         class="control-btn clear"
       >
-        ❌ Clear Errors
+        ❌ Clear Errors ({{ queueStore.errorFiles.length }})
       </button>
     </div>
 
@@ -121,25 +111,13 @@
       <p>No files in queue</p>
       <p class="hint">Upload files to start converting</p>
     </div>
-
-    <!-- Download Progress -->
-    <div v-if="isDownloadingAll" class="download-progress">
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: `${downloadProgress}%` }"></div>
-      </div>
-      <span class="progress-text">Creating ZIP archive... {{ downloadProgress }}%</span>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useQueueStore, type QueuedFile } from '@web/stores/queue'
-import JSZip from 'jszip'
 
 const queueStore = useQueueStore()
-const isDownloadingAll = ref(false)
-const downloadProgress = ref(0)
 
 const getStatusText = (status: QueuedFile['status']) => {
   switch (status) {
@@ -158,76 +136,6 @@ const formatFileSize = (bytes: number): string => {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
-async function downloadAllCompleted() {
-  const completedFiles = queueStore.completedFiles
-  if (completedFiles.length === 0) return
-
-  try {
-    isDownloadingAll.value = true
-    downloadProgress.value = 0
-
-    console.log(`[Queue] Creating ZIP with ${completedFiles.length} files...`)
-    
-    const zip = new JSZip()
-    const totalFiles = completedFiles.length
-    let processedFiles = 0
-
-    // Add all completed files to ZIP
-    for (const file of completedFiles) {
-      if (file.convertedBlob && file.convertedName) {
-        console.log(`[Queue] Adding to ZIP: ${file.convertedName}`)
-        zip.file(file.convertedName, file.convertedBlob)
-      }
-      
-      processedFiles++
-      downloadProgress.value = Math.round((processedFiles / totalFiles) * 80) // 80% for adding files
-    }
-
-    console.log('[Queue] Generating ZIP archive...')
-    downloadProgress.value = 85
-
-    // Generate ZIP
-    const zipBlob = await zip.generateAsync({ 
-      type: 'blob',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 }
-    })
-
-    downloadProgress.value = 95
-
-    // Create download
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
-    const filename = `converted-files-${timestamp}.zip`
-    
-    console.log(`[Queue] Downloading ZIP: ${filename}`)
-    const url = URL.createObjectURL(zipBlob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-
-    downloadProgress.value = 100
-
-    // Auto-clear completed files after download
-    setTimeout(() => {
-      queueStore.clearCompleted()
-      console.log('[Queue] Cleared completed files after download')
-    }, 1000)
-
-  } catch (error) {
-    console.error('[Queue] Failed to create ZIP download:', error)
-    alert('Failed to create download. Please try again.')
-  } finally {
-    setTimeout(() => {
-      isDownloadingAll.value = false
-      downloadProgress.value = 0
-    }, 1500)
-  }
 }
 </script>
 
@@ -297,17 +205,6 @@ async function downloadAllCompleted() {
     &:hover:not(:disabled) { 
       background: #ffecb5; 
       transform: translateY(-1px);
-    }
-  }
-
-  &.download-all {
-    background: #42b883;
-    color: white;
-    font-weight: 600;
-    &:hover:not(:disabled) { 
-      background: #3aa876; 
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(66, 184, 131, 0.3);
     }
   }
 
@@ -481,31 +378,6 @@ async function downloadAllCompleted() {
   .hint {
     font-size: 0.875rem;
     margin-top: 0.5rem;
-  }
-}
-
-.download-progress {
-  padding: 1rem;
-  border-top: 1px solid #eee;
-  background: #f8f9fa;
-
-  .progress-bar {
-    height: 8px;
-    background: #e9ecef;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 0.5rem;
-  }
-
-  .progress-fill {
-    background: linear-gradient(90deg, #42b883, #3aa876);
-  }
-
-  .progress-text {
-    text-align: center;
-    font-size: 0.875rem;
-    color: #2c3e50;
-    font-weight: 500;
   }
 }
 </style>
