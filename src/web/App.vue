@@ -57,38 +57,50 @@ body {
   background: #f8f9fa;
 }
 
-// Bolt badge styles
+// Bolt badge styles - FIXED!
 .bolt-badge-container {
-  position: fixed; 
-  top: 1rem; 
-  right: 1rem; 
-  z-index: 50;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 9999; // Higher z-index to ensure visibility
 }
 
 .bolt-badge-link {
-  display: block; 
+  display: block;
   transition: all 0.3s ease;
 
   &:hover {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transform: scale(1.05);
   }
 }
 
-.bolt-badge-container img {
-  width: 5rem; 
-  height: 5rem; 
-  border-radius: 50%; 
+.bolt-badge {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 
   @media (min-width: 768px) {
     width: 7rem;
     height: 7rem;
   }
+
+  &:hover {
+    animation: badgeHover 0.6s ease-in-out;
+  }
 }
 
 @keyframes badgeIntro {
-  0% { transform: rotateY(-90deg); opacity: 0; }
-  100% { transform: rotateY(0deg); opacity: 1; }
+  0% { 
+    transform: rotateY(-90deg); 
+    opacity: 0; 
+  }
+  100% { 
+    transform: rotateY(0deg); 
+    opacity: 1; 
+  }
 }
 
 .bolt-badge-intro {
@@ -100,13 +112,15 @@ body {
 }
 
 @keyframes badgeHover {
-  0% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.1) rotate(22deg); }
-  100% { transform: scale(1) rotate(0deg); }
-}
-
-.bolt-badge:hover {
-  animation: badgeHover 0.6s ease-in-out;
+  0% { 
+    transform: scale(1) rotate(0deg); 
+  }
+  50% { 
+    transform: scale(1.1) rotate(22deg); 
+  }
+  100% { 
+    transform: scale(1) rotate(0deg); 
+  }
 }
 
 // App styles
