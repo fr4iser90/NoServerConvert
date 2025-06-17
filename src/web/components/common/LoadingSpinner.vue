@@ -151,4 +151,3 @@ defineProps<{
   }
 }
 </style>
-</template>
