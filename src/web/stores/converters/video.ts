@@ -182,24 +182,44 @@ export const useVideoStore = defineStore('video-converter', {
           ])
           console.log('[Video Store] FFmpeg conversion finished with result:', result)
 
+          // Verify output file exists before attempting to read it
+          console.log('[Video Store] Verifying output file exists...')
+          const outputFileList = await this.ffmpeg.listDir('/')
+          console.log('[Video Store] Files in FFmpeg filesystem after conversion:', outputFileList)
+          
+          const outputFileExists = outputFileList.some((f: any) => f.name === outputFileName)
+          if (!outputFileExists) {
+            console.error('[Video Store] Output file not found in filesystem')
+            throw new Error(`Conversion failed: Output file '${outputFileName}' was not created. FFmpeg may have encountered an error during conversion.`)
+          }
+
           // Read output file
           console.log('[Video Store] Reading output file...')
-          const data = await this.ffmpeg.readFile(outputFileName, 'binary') as Uint8Array
-          console.log('[Video Store] Output file read, size:', data.length)
-          
-          const blob = new Blob([data], { type: `video/${format}` })
-          
-          // Download the converted file
-          console.log('[Video Store] Creating download...')
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = `${file.name.split('.')[0]}.${format}`
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          URL.revokeObjectURL(url)
-          console.log('[Video Store] Download started')
+          try {
+            const data = await this.ffmpeg.readFile(outputFileName, 'binary') as Uint8Array
+            console.log('[Video Store] Output file read, size:', data.length)
+            
+            if (data.length === 0) {
+              throw new Error(`Output file '${outputFileName}' is empty. Conversion may have failed.`)
+            }
+            
+            const blob = new Blob([data], { type: `video/${format}` })
+            
+            // Download the converted file
+            console.log('[Video Store] Creating download...')
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `${file.name.split('.')[0]}.${format}`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+            console.log('[Video Store] Download started')
+          } catch (readError: unknown) {
+            console.error('[Video Store] Failed to read output file:', readError)
+            throw new Error(`Failed to read converted file: ${readError instanceof Error ? readError.message : String(readError)}`)
+          }
         }
 
         // Clear files after successful conversion
@@ -257,6 +277,13 @@ export const useVideoStore = defineStore('video-converter', {
             '-q:a', '2', // High quality
             outputFileName
           ])
+
+          // Verify output file exists before reading
+          const outputFileList = await this.ffmpeg.listDir('/')
+          const outputFileExists = outputFileList.some((f: any) => f.name === outputFileName)
+          if (!outputFileExists) {
+            throw new Error(`Audio extraction failed: Output file '${outputFileName}' was not created.`)
+          }
 
           const data = await this.ffmpeg.readFile(outputFileName)
           const blob = new Blob([data], { type: 'audio/mp3' })
@@ -326,6 +353,13 @@ export const useVideoStore = defineStore('video-converter', {
             '-b:a', '128k',
             outputFileName
           ])
+
+          // Verify output file exists before reading
+          const outputFileList = await this.ffmpeg.listDir('/')
+          const outputFileExists = outputFileList.some((f: any) => f.name === outputFileName)
+          if (!outputFileExists) {
+            throw new Error(`Video compression failed: Output file '${outputFileName}' was not created.`)
+          }
 
           const data = await this.ffmpeg.readFile(outputFileName)
           const blob = new Blob([data], { type: file.type })
