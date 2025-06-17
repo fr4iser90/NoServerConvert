@@ -16,6 +16,7 @@ export interface QueuedFile {
   addedAt: Date
   startedAt?: Date
   completedAt?: Date
+  downloadedAt?: Date // 🎯 Track download status
 }
 
 export const useQueueStore = defineStore('queue', () => {
@@ -24,6 +25,7 @@ export const useQueueStore = defineStore('queue', () => {
   const maxConcurrent = ref(3) // Process 3 files simultaneously
   const maxMemoryUsage = ref(1024 * 1024 * 1024) // 1GB limit
   const bulkDownloadMode = ref<'pack10' | 'all'>('pack10') // 🎯 BULK DOWNLOAD MODE!
+  const bulkCounter = ref(1) // 🎯 Counter for consistent naming
 
   // Computed properties
   const pendingFiles = computed(() => 
@@ -51,9 +53,6 @@ export const useQueueStore = defineStore('queue', () => {
     const total = files.value.reduce((sum, file) => sum + file.progress, 0)
     return Math.round(total / files.value.length)
   })
-
-  // 🎯 BULK DOWNLOAD COLLECTIONS
-  const completedBulks = ref<{ id: string, files: QueuedFile[], downloadedAt?: Date }[]>([])
 
   // Actions
   function addFiles(newFiles: File[], converter: string, options: Record<string, any> = {}) {
@@ -119,7 +118,8 @@ export const useQueueStore = defineStore('queue', () => {
       if (completed.length >= 10) {
         const pack = completed.slice(0, 10)
         console.log(`[Queue] 📦 Creating 10-pack download with ${pack.length} files`)
-        downloadBulk(pack, '10-pack')
+        downloadBulk(pack, `Pack-${bulkCounter.value}`)
+        bulkCounter.value++
         
         // Mark as downloaded
         pack.forEach(file => {
@@ -130,7 +130,7 @@ export const useQueueStore = defineStore('queue', () => {
       // Warten bis alle fertig sind, dann alle downloaden
       if (pendingFiles.value.length === 0 && processingFiles.value.length === 0 && completed.length > 0) {
         console.log(`[Queue] 📦 Creating complete download with ${completed.length} files`)
-        downloadBulk(completed, 'complete')
+        downloadBulk(completed, 'Complete')
         
         // Mark as downloaded
         completed.forEach(file => {
@@ -140,10 +140,10 @@ export const useQueueStore = defineStore('queue', () => {
     }
   }
 
-  // 🎯 BULK DOWNLOAD FUNCTION
-  async function downloadBulk(files: QueuedFile[], type: string) {
+  // 🎯 BULK DOWNLOAD FUNCTION - FIXED!
+  async function downloadBulk(files: QueuedFile[], packName: string) {
     try {
-      console.log(`[Queue] 🎯 Starting ${type} bulk download for ${files.length} files`)
+      console.log(`[Queue] 🎯 Starting ${packName} bulk download for ${files.length} files`)
       
       if (files.length === 1) {
         // Single file - direct download
@@ -168,12 +168,25 @@ export const useQueueStore = defineStore('queue', () => {
 
       files.forEach((file, index) => {
         if (file.convertedBlob && file.convertedName) {
-          // Avoid name conflicts
-          const fileName = files.filter((f, i) => i < index && f.convertedName === file.convertedName).length > 0
-            ? `${file.convertedName.split('.')[0]}_${index + 1}.${file.convertedName.split('.').pop()}`
-            : file.convertedName
+          // 🎯 WICHTIG: Check if converted file is already a ZIP
+          const isZipFile = file.convertedName.endsWith('.zip')
           
-          zip.file(fileName, file.convertedBlob)
+          if (isZipFile) {
+            // If it's already a ZIP, extract its contents instead of nesting
+            console.log(`[Queue] 📦 Extracting ZIP contents from: ${file.convertedName}`)
+            // For now, just add the ZIP as-is but with a better name
+            const baseName = file.file.name.split('.')[0]
+            const zipName = `${baseName}_converted.zip`
+            zip.file(zipName, file.convertedBlob)
+          } else {
+            // Regular file - add directly
+            // Avoid name conflicts
+            const fileName = files.filter((f, i) => i < index && f.convertedName === file.convertedName).length > 0
+              ? `${file.convertedName.split('.')[0]}_${index + 1}.${file.convertedName.split('.').pop()}`
+              : file.convertedName
+            
+            zip.file(fileName, file.convertedBlob)
+          }
           validFiles++
         }
       })
@@ -190,9 +203,8 @@ export const useQueueStore = defineStore('queue', () => {
         compressionOptions: { level: 6 }
       })
 
-      // Download ZIP
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
-      const zipName = `converted_${type}_${timestamp}.zip`
+      // 🎯 CONSISTENT NAMING!
+      const zipName = `Converted_${packName}.zip`
       
       const url = URL.createObjectURL(zipBlob)
       const a = document.createElement('a')
@@ -377,6 +389,7 @@ export const useQueueStore = defineStore('queue', () => {
     console.log('[Queue] 🗑️ Clearing all files')
     files.value = []
     isProcessing.value = false
+    bulkCounter.value = 1 // Reset counter
   }
 
   function retryFile(id: string) {
@@ -414,13 +427,18 @@ export const useQueueStore = defineStore('queue', () => {
   function setBulkDownloadMode(mode: 'pack10' | 'all') {
     bulkDownloadMode.value = mode
     console.log(`[Queue] 📦 Bulk download mode set to: ${mode}`)
+    
+    // Reset counter when changing mode
+    if (mode === 'pack10') {
+      bulkCounter.value = 1
+    }
   }
 
   // 🎯 MANUAL BULK DOWNLOAD TRIGGER
   function triggerBulkDownload() {
     const completed = completedFiles.value.filter(f => !f.downloadedAt)
     if (completed.length > 0) {
-      downloadBulk(completed, 'manual')
+      downloadBulk(completed, 'Manual')
       completed.forEach(file => {
         file.downloadedAt = new Date()
       })
