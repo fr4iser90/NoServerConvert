@@ -157,8 +157,17 @@ export const useQueueStore = defineStore('queue', () => {
           break
         }
         case 'image': {
-          const { JpgConverter } = await import('@shared/converters/modules/image/basic/jpg/JpgConverter')
-          converter = new JpgConverter()
+          const format = queuedFile.options?.format || 'png'
+          if (format === 'jpg' || format === 'jpeg') {
+            const { JpgConverter } = await import('@shared/converters/modules/image/basic/jpg/JpgConverter')
+            converter = new JpgConverter()
+          } else if (format === 'webp') {
+            const { WebpConverter } = await import('@shared/converters/modules/image/basic/webp/WebpConverter')
+            converter = new WebpConverter()
+          } else {
+            const { PngConverter } = await import('@shared/converters/modules/image/basic/png/PngConverter')
+            converter = new PngConverter()
+          }
           break
         }
         case 'audio': {

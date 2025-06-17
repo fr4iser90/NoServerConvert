@@ -24,6 +24,16 @@
         ▶️ Start
       </button>
       
+      <!-- Download All Button -->
+      <button 
+        v-if="queueStore.completedFiles.length > 0"
+        @click="downloadAllCompleted"
+        class="control-btn download-all"
+        :disabled="isDownloadingAll"
+      >
+        {{ isDownloadingAll ? '📦 Creating ZIP...' : `📥 Download All (${queueStore.completedFiles.length})` }}
+      </button>
+      
       <button 
         v-if="queueStore.completedFiles.length > 0"
         @click="queueStore.clearCompleted()"
@@ -75,15 +85,6 @@
 
         <div class="file-actions">
           <button 
-            v-if="file.status === 'completed' && file.convertedBlob"
-            @click="downloadFile(file)"
-            class="action-btn download"
-            title="Download converted file"
-          >
-            📥 Download
-          </button>
-          
-          <button 
             v-if="file.status === 'error'"
             @click="queueStore.retryFile(file.id)"
             class="action-btn retry"
@@ -120,13 +121,25 @@
       <p>No files in queue</p>
       <p class="hint">Upload files to start converting</p>
     </div>
+
+    <!-- Download Progress -->
+    <div v-if="isDownloadingAll" class="download-progress">
+      <div class="progress-bar">
+        <div class="progress-fill" :style="{ width: `${downloadProgress}%` }"></div>
+      </div>
+      <span class="progress-text">Creating ZIP archive... {{ downloadProgress }}%</span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useQueueStore, type QueuedFile } from '@web/stores/queue'
+import JSZip from 'jszip'
 
 const queueStore = useQueueStore()
+const isDownloadingAll = ref(false)
+const downloadProgress = ref(0)
 
 const getStatusText = (status: QueuedFile['status']) => {
   switch (status) {
@@ -147,17 +160,74 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
-const downloadFile = (file: QueuedFile) => {
-  if (!file.convertedBlob || !file.convertedName) return
+async function downloadAllCompleted() {
+  const completedFiles = queueStore.completedFiles
+  if (completedFiles.length === 0) return
 
-  const url = URL.createObjectURL(file.convertedBlob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = file.convertedName
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  try {
+    isDownloadingAll.value = true
+    downloadProgress.value = 0
+
+    console.log(`[Queue] Creating ZIP with ${completedFiles.length} files...`)
+    
+    const zip = new JSZip()
+    const totalFiles = completedFiles.length
+    let processedFiles = 0
+
+    // Add all completed files to ZIP
+    for (const file of completedFiles) {
+      if (file.convertedBlob && file.convertedName) {
+        console.log(`[Queue] Adding to ZIP: ${file.convertedName}`)
+        zip.file(file.convertedName, file.convertedBlob)
+      }
+      
+      processedFiles++
+      downloadProgress.value = Math.round((processedFiles / totalFiles) * 80) // 80% for adding files
+    }
+
+    console.log('[Queue] Generating ZIP archive...')
+    downloadProgress.value = 85
+
+    // Generate ZIP
+    const zipBlob = await zip.generateAsync({ 
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    })
+
+    downloadProgress.value = 95
+
+    // Create download
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
+    const filename = `converted-files-${timestamp}.zip`
+    
+    console.log(`[Queue] Downloading ZIP: ${filename}`)
+    const url = URL.createObjectURL(zipBlob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    downloadProgress.value = 100
+
+    // Auto-clear completed files after download
+    setTimeout(() => {
+      queueStore.clearCompleted()
+      console.log('[Queue] Cleared completed files after download')
+    }, 1000)
+
+  } catch (error) {
+    console.error('[Queue] Failed to create ZIP download:', error)
+    alert('Failed to create download. Please try again.')
+  } finally {
+    setTimeout(() => {
+      isDownloadingAll.value = false
+      downloadProgress.value = 0
+    }, 1500)
+  }
 }
 </script>
 
@@ -199,29 +269,55 @@ const downloadFile = (file: QueuedFile) => {
 }
 
 .control-btn {
-  padding: 0.25rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.75rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  font-weight: 500;
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
 
   &.play {
     background: #d1e7dd;
     color: #0f5132;
-    &:hover { background: #badbcc; }
+    &:hover:not(:disabled) { 
+      background: #badbcc; 
+      transform: translateY(-1px);
+    }
   }
 
   &.pause {
     background: #fff3cd;
     color: #664d03;
-    &:hover { background: #ffecb5; }
+    &:hover:not(:disabled) { 
+      background: #ffecb5; 
+      transform: translateY(-1px);
+    }
+  }
+
+  &.download-all {
+    background: #42b883;
+    color: white;
+    font-weight: 600;
+    &:hover:not(:disabled) { 
+      background: #3aa876; 
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(66, 184, 131, 0.3);
+    }
   }
 
   &.clear {
     background: #f8d7da;
     color: #842029;
-    &:hover { background: #f5c2c7; }
+    &:hover:not(:disabled) { 
+      background: #f5c2c7; 
+      transform: translateY(-1px);
+    }
   }
 }
 
@@ -239,12 +335,28 @@ const downloadFile = (file: QueuedFile) => {
   border-radius: 6px;
   padding: 0.75rem;
   border-left: 4px solid #dee2e6;
+  transition: all 0.2s;
 
   &.pending { border-left-color: #6c757d; }
-  &.processing { border-left-color: #0dcaf0; }
-  &.completed { border-left-color: #198754; }
-  &.error { border-left-color: #dc3545; }
+  &.processing { 
+    border-left-color: #0dcaf0; 
+    background: #f0f9ff;
+    animation: pulse 2s infinite;
+  }
+  &.completed { 
+    border-left-color: #198754; 
+    background: #f0f9f4;
+  }
+  &.error { 
+    border-left-color: #dc3545; 
+    background: #fff5f5;
+  }
   &.paused { border-left-color: #fd7e14; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
 }
 
 .file-info {
@@ -290,22 +402,24 @@ const downloadFile = (file: QueuedFile) => {
 
 .progress-bar {
   flex: 1;
-  height: 4px;
+  height: 6px;
   background: #e9ecef;
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: #0dcaf0;
+  background: linear-gradient(90deg, #42b883, #3aa876);
   transition: width 0.3s ease;
+  border-radius: 3px;
 }
 
 .progress-text {
   font-size: 0.75rem;
   color: #666;
   min-width: 35px;
+  font-weight: 500;
 }
 
 .error-message {
@@ -330,24 +444,24 @@ const downloadFile = (file: QueuedFile) => {
   border-radius: 4px;
   font-size: 0.75rem;
   cursor: pointer;
-  transition: background-color 0.2s;
-
-  &.download {
-    background: #d1e7dd;
-    color: #0f5132;
-    &:hover { background: #badbcc; }
-  }
+  transition: all 0.2s;
 
   &.retry {
     background: #fff3cd;
     color: #664d03;
-    &:hover { background: #ffecb5; }
+    &:hover { 
+      background: #ffecb5; 
+      transform: translateY(-1px);
+    }
   }
 
   &.remove {
     background: #f8d7da;
     color: #842029;
-    &:hover { background: #f5c2c7; }
+    &:hover { 
+      background: #f5c2c7; 
+      transform: translateY(-1px);
+    }
   }
 }
 
@@ -367,6 +481,31 @@ const downloadFile = (file: QueuedFile) => {
   .hint {
     font-size: 0.875rem;
     margin-top: 0.5rem;
+  }
+}
+
+.download-progress {
+  padding: 1rem;
+  border-top: 1px solid #eee;
+  background: #f8f9fa;
+
+  .progress-bar {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+
+  .progress-fill {
+    background: linear-gradient(90deg, #42b883, #3aa876);
+  }
+
+  .progress-text {
+    text-align: center;
+    font-size: 0.875rem;
+    color: #2c3e50;
+    font-weight: 500;
   }
 }
 </style>
