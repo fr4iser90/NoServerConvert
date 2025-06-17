@@ -36,27 +36,16 @@ export const useAudioStore = defineStore('audio-converter', {
       }
 
       try {
-        this.isProcessing = true
-        this.loadingMessage = 'Initializing audio converter...'
-        this.loadingProgress = 0
-
+        // 🎯 WICHTIG: KEIN isProcessing = true beim Initialisieren!
         console.log('[Audio Store] Getting FFmpeg instance from queue store...')
         const queueStore = useQueueStore()
         this.ffmpeg = await queueStore.getFFmpegInstance('audio')
         console.log('[Audio Store] FFmpeg instance obtained successfully')
         
-        this.loadingMessage = 'Audio converter ready!'
-        this.loadingProgress = 100
-        
-        setTimeout(() => {
-          this.isProcessing = false
-          this.loadingMessage = ''
-          this.loadingProgress = 0
-        }, 500)
+        // 🎯 KEIN Loading Spinner beim Initialisieren!
       } catch (error) {
         console.error('[Audio Store] Failed to get FFmpeg instance:', error)
         this.error = `Failed to initialize audio converter: ${error instanceof Error ? error.message : String(error)}`
-        this.isProcessing = false
         throw new Error(`Failed to initialize audio converter: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
@@ -88,6 +77,7 @@ export const useAudioStore = defineStore('audio-converter', {
       if (!this.selectedFiles.length || !this.ffmpeg) return
 
       try {
+        // 🎯 NUR HIER isProcessing = true für Conversion!
         this.isProcessing = true
         this.error = null
         this.totalFiles = this.selectedFiles.length
@@ -155,6 +145,7 @@ export const useAudioStore = defineStore('audio-converter', {
       if (!this.selectedFiles.length || !this.ffmpeg) return
 
       try {
+        // 🎯 NUR HIER isProcessing = true für Compression!
         this.isProcessing = true
         this.error = null
         this.totalFiles = this.selectedFiles.length
