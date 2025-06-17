@@ -111,103 +111,26 @@ export const useVideoStore = defineStore('video-converter', {
 
         const { fetchFile } = await import('@ffmpeg/util')
 
-        // 🎯 OPTIMIERTE FFMPEG OPTIONEN!
-        let options: string[]
-        if (format === 'mp4') {
-          // H.264 - SCHNELL!
-          options = ['-c:v', 'libx264', '-crf', this.videoQuality.toString(), '-c:a', 'aac']
-        } else {
-          // VP9 - OPTIMIERT FÜR GESCHWINDIGKEIT!
-          options = [
-            '-c:v', 'libvpx-vp9',
-            '-crf', this.videoQuality.toString(),
-            '-speed', '8',        // 🚀 MAXIMUM SPEED!
-            '-tile-columns', '6', // 🚀 PARALLEL PROCESSING!
-            '-frame-parallel', '1', // 🚀 FRAME PARALLEL!
-            '-threads', '8',      // 🚀 MORE THREADS!
-            '-deadline', 'realtime', // 🚀 REALTIME MODE!
-            '-cpu-used', '8',     // 🚀 FASTEST CPU PRESET!
-            '-c:a', 'libopus'
-          ]
-        }
-        
-        console.log('[Video Store] Using FFmpeg options:', options)
-
         for (let i = 0; i < this.selectedFiles.length; i++) {
           const file = this.selectedFiles[i]
           this.currentFile = i + 1
           this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
           
           if (format === 'webm') {
-            this.loadingMessage = `Converting ${file.name} to WebM (VP9 is slow, please wait)...`
+            this.loadingMessage = `Converting ${file.name} to WebM (this may take several minutes)...`
           } else {
             this.loadingMessage = `Converting ${file.name} to ${format.toUpperCase()}...`
           }
           
           console.log('[Video Store] Processing file:', file.name)
           
-          // Write input file to FFmpeg's virtual filesystem
-          const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
-          const outputFileName = 'output.' + format
-          console.log('[Video Store] Writing input file:', inputFileName)
+          // 🎯 OPTIMIZED CONVERSION LOGIC
+          const result = await this.convertSingleFile(file, format)
           
-          try {
-            console.log('[Video Store] Fetching file data...')
-            const fileData = await fetchFile(file)
-            console.log('[Video Store] File data fetched, size:', fileData.byteLength)
-            
-            console.log('[Video Store] Writing to FFmpeg filesystem...')
-            await this.ffmpeg.writeFile(inputFileName, fileData)
-            console.log('[Video Store] Input file written successfully')
-            
-            // Verify file was written
-            console.log('[Video Store] Verifying file...')
-            const fileList = await this.ffmpeg.listDir('/')
-            console.log('[Video Store] Files in FFmpeg filesystem:', fileList)
-            
-            if (!fileList.some((f: any) => f.name === inputFileName)) {
-              throw new Error(`File ${inputFileName} was not found in FFmpeg filesystem after writing`)
-            }
-          } catch (writeError: unknown) {
-            console.error('[Video Store] Failed to write input file:', writeError)
-            throw new Error(`Failed to write input file: ${writeError instanceof Error ? writeError.message : String(writeError)}`)
-          }
-
-          // Run FFmpeg command
-          console.log('[Video Store] Starting FFmpeg conversion...')
-          const result = await this.ffmpeg.exec([
-            '-i', inputFileName,
-            ...options,
-            outputFileName
-          ])
-          console.log('[Video Store] FFmpeg conversion finished with result:', result)
-
-          // Verify output file exists before attempting to read it
-          console.log('[Video Store] Verifying output file exists...')
-          const outputFileList = await this.ffmpeg.listDir('/')
-          console.log('[Video Store] Files in FFmpeg filesystem after conversion:', outputFileList)
-          
-          const outputFileExists = outputFileList.some((f: any) => f.name === outputFileName)
-          if (!outputFileExists) {
-            console.error('[Video Store] Output file not found in filesystem')
-            throw new Error(`Conversion failed: Output file '${outputFileName}' was not created. FFmpeg may have encountered an error during conversion.`)
-          }
-
-          // Read output file
-          console.log('[Video Store] Reading output file...')
-          try {
-            const data = await this.ffmpeg.readFile(outputFileName, 'binary') as Uint8Array
-            console.log('[Video Store] Output file read, size:', data.length)
-            
-            if (data.length === 0) {
-              throw new Error(`Output file '${outputFileName}' is empty. Conversion may have failed.`)
-            }
-            
-            const blob = new Blob([data], { type: `video/${format}` })
-            
+          if (result.success) {
             // Download the converted file
             console.log('[Video Store] Creating download...')
-            const url = URL.createObjectURL(blob)
+            const url = URL.createObjectURL(result.blob!)
             const a = document.createElement('a')
             a.href = url
             a.download = `${file.name.split('.')[0]}.${format}`
@@ -216,9 +139,8 @@ export const useVideoStore = defineStore('video-converter', {
             document.body.removeChild(a)
             URL.revokeObjectURL(url)
             console.log('[Video Store] Download started')
-          } catch (readError: unknown) {
-            console.error('[Video Store] Failed to read output file:', readError)
-            throw new Error(`Failed to read converted file: ${readError instanceof Error ? readError.message : String(readError)}`)
+          } else {
+            throw new Error(result.error || 'Conversion failed')
           }
         }
 
@@ -236,6 +158,142 @@ export const useVideoStore = defineStore('video-converter', {
         console.error('[Video Store] Conversion failed:', err)
         this.error = err instanceof Error ? err.message : 'Conversion failed'
         this.isProcessing = false
+      }
+    },
+
+    // 🎯 NEW: OPTIMIZED SINGLE FILE CONVERSION
+    async convertSingleFile(file: File, format: 'mp4' | 'webm'): Promise<{success: boolean, blob?: Blob, error?: string}> {
+      try {
+        const { fetchFile } = await import('@ffmpeg/util')
+        
+        // Prepare file names
+        const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
+        const outputFileName = 'output.' + format
+        
+        console.log('[Video Store] Writing input file:', inputFileName)
+        
+        // Write input file
+        try {
+          const fileData = await fetchFile(file)
+          console.log('[Video Store] File data fetched, size:', fileData.byteLength)
+          
+          await this.ffmpeg.writeFile(inputFileName, fileData)
+          console.log('[Video Store] Input file written successfully')
+          
+          // Verify file was written
+          const fileList = await this.ffmpeg.listDir('/')
+          if (!fileList.some((f: any) => f.name === inputFileName)) {
+            throw new Error(`File ${inputFileName} was not found in FFmpeg filesystem after writing`)
+          }
+        } catch (writeError) {
+          console.error('[Video Store] Failed to write input file:', writeError)
+          return { success: false, error: `Failed to write input file: ${writeError instanceof Error ? writeError.message : String(writeError)}` }
+        }
+
+        // 🎯 OPTIMIZED FFMPEG OPTIONS FOR EACH FORMAT
+        let ffmpegArgs: string[]
+        
+        if (format === 'mp4') {
+          // H.264 - FAST AND RELIABLE
+          ffmpegArgs = [
+            '-i', inputFileName,
+            '-c:v', 'libx264',
+            '-crf', this.videoQuality.toString(),
+            '-preset', 'medium',
+            '-c:a', 'aac',
+            '-movflags', '+faststart', // Optimize for web playback
+            outputFileName
+          ]
+        } else {
+          // WebM VP9 - HEAVILY OPTIMIZED FOR SPEED AND COMPATIBILITY
+          ffmpegArgs = [
+            '-i', inputFileName,
+            '-c:v', 'libvpx-vp9',
+            '-crf', Math.max(this.videoQuality + 5, 30).toString(), // Higher CRF for WebM (faster)
+            '-speed', '8',              // Maximum speed
+            '-tile-columns', '2',       // Reduced for compatibility
+            '-frame-parallel', '1',     // Enable frame parallel
+            '-threads', '4',            // Moderate thread count
+            '-deadline', 'realtime',    // Realtime encoding
+            '-cpu-used', '8',           // Fastest CPU preset
+            '-row-mt', '1',             // Row-based multithreading
+            '-auto-alt-ref', '1',       // Alternative reference frames
+            '-lag-in-frames', '0',      // No lag for speed
+            '-error-resilient', '1',    // Error resilience
+            '-c:a', 'libopus',
+            '-b:a', '128k',             // Fixed audio bitrate
+            outputFileName
+          ]
+        }
+        
+        console.log('[Video Store] Using FFmpeg options:', ffmpegArgs)
+
+        // Run FFmpeg conversion with timeout
+        console.log('[Video Store] Starting FFmpeg conversion...')
+        
+        // 🎯 ADD CONVERSION TIMEOUT FOR WEBM
+        const conversionPromise = this.ffmpeg.exec(ffmpegArgs)
+        const timeoutMs = format === 'webm' ? 300000 : 120000 // 5 min for WebM, 2 min for MP4
+        
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(`Conversion timeout after ${timeoutMs/1000} seconds`)), timeoutMs)
+        })
+        
+        try {
+          await Promise.race([conversionPromise, timeoutPromise])
+          console.log('[Video Store] FFmpeg conversion finished successfully')
+        } catch (conversionError) {
+          console.error('[Video Store] FFmpeg conversion failed:', conversionError)
+          return { success: false, error: `Conversion failed: ${conversionError instanceof Error ? conversionError.message : String(conversionError)}` }
+        }
+
+        // Verify output file exists
+        console.log('[Video Store] Verifying output file exists...')
+        try {
+          const outputFileList = await this.ffmpeg.listDir('/')
+          console.log('[Video Store] Files in FFmpeg filesystem after conversion:', outputFileList)
+          
+          const outputFileExists = outputFileList.some((f: any) => f.name === outputFileName)
+          if (!outputFileExists) {
+            console.error('[Video Store] Output file not found in filesystem')
+            return { success: false, error: `Conversion failed: Output file '${outputFileName}' was not created. This may be due to an unsupported codec or corrupted input file.` }
+          }
+        } catch (listError) {
+          console.error('[Video Store] Failed to list output files:', listError)
+          return { success: false, error: `Failed to verify output file: ${listError instanceof Error ? listError.message : String(listError)}` }
+        }
+
+        // Read output file
+        console.log('[Video Store] Reading output file...')
+        try {
+          const data = await this.ffmpeg.readFile(outputFileName, 'binary') as Uint8Array
+          console.log('[Video Store] Output file read, size:', data.length)
+          
+          if (data.length === 0) {
+            return { success: false, error: `Output file '${outputFileName}' is empty. Conversion may have failed due to codec issues or corrupted input.` }
+          }
+          
+          const blob = new Blob([data], { type: `video/${format}` })
+          
+          // Clean up FFmpeg filesystem
+          try {
+            await this.ffmpeg.deleteFile(inputFileName)
+            await this.ffmpeg.deleteFile(outputFileName)
+          } catch (cleanupError) {
+            console.warn('[Video Store] Failed to cleanup files:', cleanupError)
+            // Non-critical error, continue
+          }
+          
+          return { success: true, blob }
+          
+        } catch (readError) {
+          console.error('[Video Store] Failed to read output file:', readError)
+          return { success: false, error: `Failed to read converted file: ${readError instanceof Error ? readError.message : String(readError)}` }
+        }
+        
+      } catch (error) {
+        console.error('[Video Store] Conversion error:', error)
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown conversion error' }
       }
     },
 
