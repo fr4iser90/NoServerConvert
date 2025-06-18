@@ -194,31 +194,32 @@ export const useVideoStore = defineStore('video-converter', {
         let ffmpegArgs: string[]
         
         if (format === 'mp4') {
-          // H.264 - FAST AND RELIABLE
+          // H.264 - FAST AND RELIABLE - SPEED OPTIMIZED
           ffmpegArgs = [
             '-i', inputFileName,
             '-c:v', 'libx264',
-            '-crf', this.videoQuality.toString(),
-            '-preset', 'medium',
+            '-crf', Math.min(this.videoQuality + 5, 35).toString(), // Higher CRF for speed
+            '-preset', 'ultrafast', // FASTEST preset instead of medium
+            '-tune', 'fastdecode', // Optimize for fast decoding
             '-c:a', 'aac',
             '-movflags', '+faststart', // Optimize for web playback
             outputFileName
           ]
         } else {
-          // WebM VP9 - HEAVILY OPTIMIZED FOR SPEED AND COMPATIBILITY
+          // WebM VP9 - HEAVILY OPTIMIZED FOR SPEED AND COMPATIBILITY  
           ffmpegArgs = [
             '-i', inputFileName,
             '-c:v', 'libvpx-vp9',
-            '-crf', Math.max(this.videoQuality + 5, 30).toString(), // Higher CRF for WebM (faster)
+            '-crf', Math.min(this.videoQuality + 10, 40).toString(), // Much higher CRF for WebM speed
             '-speed', '8',              // Maximum speed
-            '-tile-columns', '2',       // Reduced for compatibility
-            '-frame-parallel', '1',     // Enable frame parallel
-            '-threads', '4',            // Moderate thread count
-            '-deadline', 'realtime',    // Realtime encoding
+            '-deadline', 'realtime',    // Realtime encoding for speed
             '-cpu-used', '8',           // Fastest CPU preset
-            '-row-mt', '1',             // Row-based multithreading
+            '-threads', '2',            // Limit threads for single-threaded FFmpeg
+            '-tile-columns', '1',       // Reduced complexity
+            '-frame-parallel', '0',     // Disable for single-thread
+            '-row-mt', '0',             // Disable row multithreading
             '-auto-alt-ref', '1',       // Alternative reference frames
-            '-lag-in-frames', '0',      // No lag for speed
+            '-lag-in-frames', '0',      // No lag for maximum speed
             '-error-resilient', '1',    // Error resilience
             '-c:a', 'libopus',
             '-b:a', '128k',             // Fixed audio bitrate
@@ -405,10 +406,12 @@ export const useVideoStore = defineStore('video-converter', {
           await this.ffmpeg.exec([
             '-i', inputFileName,
             '-c:v', 'libx264',
-            '-crf', '28', // Higher CRF for compression
-            '-preset', 'medium',
+            '-crf', '30', // Higher CRF for faster compression
+            '-preset', 'ultrafast', // FASTEST preset for compression
+            '-tune', 'fastdecode', // Fast decoding optimization
             '-c:a', 'aac',
             '-b:a', '128k',
+            '-movflags', '+faststart', // Web optimization
             outputFileName
           ])
 

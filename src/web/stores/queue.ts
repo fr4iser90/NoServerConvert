@@ -612,7 +612,7 @@ export const useQueueStore = defineStore('queue', () => {
       let fileName: string
       
       if (queuedFile.options?.format === 'extract-audio') {
-        // Extract audio
+        // Extract audio - FAST
         ffmpegArgs = [
           '-i', inputFileName,
           '-vn', // No video
@@ -623,24 +623,49 @@ export const useQueueStore = defineStore('queue', () => {
         outputFormat = 'mp3'
         fileName = `${queuedFile.file.name.split('.')[0]}.mp3`
       } else if (queuedFile.options?.format === 'compress') {
-        // Compress video
+        // Compress video - SPEED OPTIMIZED
         ffmpegArgs = [
           '-i', inputFileName,
           '-c:v', 'libx264',
-          '-crf', '28', // Higher CRF for compression
-          '-preset', 'medium',
+          '-crf', '30', // Higher CRF for faster compression
+          '-preset', 'ultrafast', // FASTEST preset
+          '-tune', 'fastdecode', // Optimize for fast decoding
           '-c:a', 'aac',
           '-b:a', '128k',
+          '-movflags', '+faststart', // Web optimization
           outputFileName
         ]
         fileName = `compressed_${queuedFile.file.name}`
       } else {
-        // Format conversion
-        const quality = queuedFile.options?.quality || 23
+        // Format conversion - SPEED OPTIMIZED
+        const quality = queuedFile.options?.quality || 28 // Higher default CRF for speed
         if (format === 'mp4') {
-          ffmpegArgs = ['-i', inputFileName, '-c:v', 'libx264', '-crf', quality.toString(), '-c:a', 'aac', outputFileName]
+          ffmpegArgs = [
+            '-i', inputFileName, 
+            '-c:v', 'libx264', 
+            '-crf', Math.min(quality + 5, 35).toString(), // Higher CRF for speed
+            '-preset', 'ultrafast', // FASTEST preset
+            '-tune', 'fastdecode', // Fast decoding
+            '-c:a', 'aac', 
+            '-movflags', '+faststart', // Web optimization
+            outputFileName
+          ]
         } else if (format === 'webm') {
-          ffmpegArgs = ['-i', inputFileName, '-c:v', 'libvpx-vp9', '-crf', quality.toString(), '-c:a', 'libopus', outputFileName]
+          ffmpegArgs = [
+            '-i', inputFileName, 
+            '-c:v', 'libvpx-vp9', 
+            '-crf', Math.min(quality + 10, 40).toString(), // Much higher CRF for WebM speed
+            '-speed', '8', // Maximum speed setting
+            '-deadline', 'realtime', // Realtime encoding
+            '-cpu-used', '8', // Fastest CPU preset
+            '-threads', '2', // Limit threads for single-threaded FFmpeg
+            '-tile-columns', '1', // Reduce complexity
+            '-frame-parallel', '0', // Disable for single-thread
+            '-row-mt', '0', // Disable row multithreading
+            '-c:a', 'libopus',
+            '-b:a', '128k',
+            outputFileName
+          ]
         } else {
           throw new Error(`Unsupported video format: ${format}`)
         }
