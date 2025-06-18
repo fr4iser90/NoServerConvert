@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch, readonly } from 'vue'
 import JSZip from 'jszip'
 
 export interface QueuedFile {
@@ -442,7 +442,7 @@ export const useQueueStore = defineStore('queue', () => {
         case 'pdf': {
           const { PdfConverter } = await import('@shared/converters/modules/document/pdf/PdfConverter')
           const converter = new PdfConverter()
-          result = await converter.convert(queuedFile.file, queuedFile.options)
+          result = await converter.convert(queuedFile.file, queuedFile.options || {})
           break
         }
         case 'image': {
@@ -450,15 +450,15 @@ export const useQueueStore = defineStore('queue', () => {
           if (format === 'jpg' || format === 'jpeg') {
             const { JpgConverter } = await import('@shared/converters/modules/image/basic/jpg/JpgConverter')
             const converter = new JpgConverter()
-            result = await converter.convert(queuedFile.file, queuedFile.options)
+            result = await converter.convert(queuedFile.file, queuedFile.options || {})
           } else if (format === 'webp') {
             const { WebpConverter } = await import('@shared/converters/modules/image/basic/webp/WebpConverter')
             const converter = new WebpConverter()
-            result = await converter.convert(queuedFile.file, queuedFile.options)
+            result = await converter.convert(queuedFile.file, queuedFile.options || {})
           } else {
             const { PngConverter } = await import('@shared/converters/modules/image/basic/png/PngConverter')
             const converter = new PngConverter()
-            result = await converter.convert(queuedFile.file, queuedFile.options)
+            result = await converter.convert(queuedFile.file, queuedFile.options || {})
           }
           break
         }
@@ -672,7 +672,7 @@ export const useQueueStore = defineStore('queue', () => {
         fileName = `${queuedFile.file.name.split('.')[0]}.${format}`
       }
       
-      // Run FFmpeg conversion
+      // Run FFmpeg conversion - NO TIMEOUT FOR LARGE FILES!
       await ffmpeg.exec(ffmpegArgs)
       
       // Read output file
@@ -778,13 +778,37 @@ export const useQueueStore = defineStore('queue', () => {
     }
   }
 
+  // 🎯 AUTO-CLEANUP AFTER DOWNLOAD
+  function enableAutoCleanup() {
+    // Watch for completed files and auto-remove them after download
+    watch(
+      () => files.value.filter(f => f.status === 'completed'),
+      (completedFiles) => {
+        // Auto-remove completed files after 30 seconds
+        completedFiles.forEach(file => {
+          setTimeout(() => {
+            const stillExists = files.value.find(f => f.id === file.id)
+            if (stillExists && stillExists.status === 'completed') {
+              removeFile(file.id)
+              console.log(`[Queue] 🗑️ Auto-cleaned completed file: ${file.file.name}`)
+            }
+          }, 30000) // 30 seconds delay
+        })
+      },
+      { immediate: true }
+    )
+  }
+
+  // Start auto-cleanup
+  enableAutoCleanup()
+
   return {
     // State
-    files,
-    isProcessing,
+    files: readonly(files),
+    isProcessing: readonly(isProcessing),
     maxConcurrent,
     maxMemoryUsage,
-    bulkDownloadMode,
+    bulkDownloadMode: readonly(bulkDownloadMode),
     bulkCounter, // 🎯 EXPOSED for PDF store!
     
     // Computed
@@ -810,6 +834,15 @@ export const useQueueStore = defineStore('queue', () => {
     updateQueueOptions,
     setBulkDownloadMode,
     triggerBulkDownload,
-    getFFmpegInstance // 🎯 EXPOSED for converter stores!
+    getFFmpegInstance, // 🎯 EXPOSED for converter stores!
+    
+    // 🎯 NEW: Converter-specific functions
+    getFilesByConverter: (converter: string) => files.value.filter(f => f.converter === converter),
+    clearByConverter: (converter: string) => {
+      const beforeCount = files.value.length
+      files.value = files.value.filter(f => f.converter !== converter)
+      const clearedCount = beforeCount - files.value.length
+      console.log(`[Queue] 🗑️ Cleared ${clearedCount} ${converter} files`)
+    }
   }
 })

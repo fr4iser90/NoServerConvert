@@ -229,19 +229,11 @@ export const useVideoStore = defineStore('video-converter', {
         
         console.log('[Video Store] Using FFmpeg options:', ffmpegArgs)
 
-        // Run FFmpeg conversion with timeout
+        // Run FFmpeg conversion - NO TIMEOUT FOR LARGE FILES!
         console.log('[Video Store] Starting FFmpeg conversion...')
         
-        // 🎯 ADD CONVERSION TIMEOUT FOR WEBM
-        const conversionPromise = this.ffmpeg.exec(ffmpegArgs)
-        const timeoutMs = format === 'webm' ? 300000 : 120000 // 5 min for WebM, 2 min for MP4
-        
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error(`Conversion timeout after ${timeoutMs/1000} seconds`)), timeoutMs)
-        })
-        
         try {
-          await Promise.race([conversionPromise, timeoutPromise])
+          await this.ffmpeg.exec(ffmpegArgs)
           console.log('[Video Store] FFmpeg conversion finished successfully')
         } catch (conversionError) {
           console.error('[Video Store] FFmpeg conversion failed:', conversionError)

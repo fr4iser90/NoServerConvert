@@ -1,72 +1,72 @@
 <template>
   <div class="queue-list">
     <div class="queue-header">
-      <h2>Processing Queue</h2>
+      <h2>{{ converterName }} Queue</h2>
       <div class="queue-stats">
-        <span class="stat">{{ queueStore.files.length }} files</span>
-        <span class="stat">{{ queueStore.totalProgress }}% complete</span>
+        <span class="stat">{{ filteredFiles.length }} files</span>
+        <span class="stat">{{ converterProgress }}% complete</span>
       </div>
     </div>
 
-    <!-- 🎯 BULK DOWNLOAD CONTROLS -->
+    <!-- 🎯 BULK DOWNLOAD CONTROLS - NO MANUAL DOWNLOAD BUTTON! -->
     <div class="bulk-controls">
       <div class="bulk-mode">
         <label>Download Mode:</label>
         <select 
           :value="queueStore.bulkDownloadMode" 
-          @change="queueStore.setBulkDownloadMode($event.target.value)"
+          @change="queueStore.setBulkDownloadMode(($event.target as HTMLSelectElement).value as 'pack10' | 'all')"
           class="mode-select"
         >
           <option value="pack10">📦 10er-Pakete (auto)</option>
           <option value="all">📋 Alle zusammen (am Ende)</option>
         </select>
       </div>
-      
-      <button 
-        v-if="queueStore.completedFiles.filter(f => !f.downloadedAt).length > 0"
-        @click="queueStore.triggerBulkDownload()"
-        class="bulk-download-btn"
-      >
-        📥 Download {{ queueStore.completedFiles.filter(f => !f.downloadedAt).length }} Files
-      </button>
     </div>
 
     <div class="queue-controls">
       <button 
-        v-if="queueStore.isProcessing"
+        v-if="queueStore.isProcessing && hasPendingFiles"
         @click="queueStore.pauseProcessing()"
         class="control-btn pause"
       >
         ⏸️ Pause
       </button>
       <button 
-        v-else-if="queueStore.pendingFiles.length > 0"
+        v-else-if="hasPendingFiles"
         @click="queueStore.startProcessing()"
         class="control-btn play"
       >
-        ▶️ Start
+        ▶️ Start {{ pendingCount }} Files
       </button>
       
       <button 
-        v-if="queueStore.completedFiles.length > 0"
-        @click="queueStore.clearCompleted()"
+        v-if="completedCount > 0"
+        @click="clearCompletedForConverter()"
         class="control-btn clear"
       >
-        🗑️ Clear Completed ({{ queueStore.completedFiles.length }})
+        🗑️ Clear {{ completedCount }} Completed
       </button>
       
       <button 
-        v-if="queueStore.errorFiles.length > 0"
-        @click="queueStore.clearErrors()"
+        v-if="errorCount > 0"
+        @click="clearErrorsForConverter()"
         class="control-btn clear"
       >
-        ❌ Clear Errors ({{ queueStore.errorFiles.length }})
+        ❌ Clear {{ errorCount }} Errors
+      </button>
+      
+      <button 
+        v-if="filteredFiles.length > 0"
+        @click="clearAllForConverter()"
+        class="control-btn clear-all"
+      >
+        🗑️ Clear All {{ converterName }}
       </button>
     </div>
 
-    <div class="queue-items" v-if="queueStore.files.length > 0">
+    <div class="queue-items" v-if="filteredFiles.length > 0">
       <div 
-        v-for="file in queueStore.files" 
+        v-for="file in filteredFiles" 
         :key="file.id"
         class="queue-item"
         :class="file.status"
@@ -79,9 +79,9 @@
             <span class="status-badge" :class="file.status">
               {{ getStatusText(file.status) }}
             </span>
-            <!-- 🎯 DOWNLOAD STATUS -->
-            <span v-if="file.status === 'completed' && file.downloadedAt" class="download-badge">
-              📥 Downloaded
+            <!-- 🎯 AUTO-DOWNLOAD STATUS -->
+            <span v-if="file.status === 'completed'" class="download-badge">
+              📥 Auto-Downloaded
             </span>
           </div>
         </div>
@@ -122,7 +122,7 @@
           <select 
             v-if="file.status === 'pending'"
             :value="file.priority"
-            @change="queueStore.setPriority(file.id, Number($event.target.value))"
+            @change="queueStore.setPriority(file.id, Number(($event.target as HTMLSelectElement).value))"
             class="priority-select"
             title="Set priority"
           >
@@ -135,12 +135,12 @@
     </div>
 
     <div v-else class="empty-queue">
-      <p>No files in queue</p>
-      <p class="hint">Upload files to start converting</p>
+      <p>No {{ converterName.toLowerCase() }} files in queue</p>
+      <p class="hint">Upload {{ converterName.toLowerCase() }} files to start converting</p>
     </div>
 
     <!-- 🎯 BULK DOWNLOAD INFO -->
-    <div v-if="queueStore.files.length > 0" class="bulk-info">
+    <div v-if="filteredFiles.length > 0" class="bulk-info">
       <div class="info-item">
         <strong>Download Mode:</strong> 
         {{ queueStore.bulkDownloadMode === 'pack10' ? '📦 10er-Pakete (automatisch)' : '📋 Alle am Ende' }}
@@ -156,9 +156,84 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQueueStore, type QueuedFile } from '@web/stores/queue'
 
 const queueStore = useQueueStore()
+const route = useRoute()
+
+// 🎯 CONVERTER-SPECIFIC FILTERING
+const currentConverter = computed(() => {
+  const path = route.path
+  if (path.includes('/pdf')) return 'pdf'
+  if (path.includes('/audio')) return 'audio'
+  if (path.includes('/video')) return 'video'
+  if (path.includes('/image')) return 'image'
+  return 'all'
+})
+
+const converterName = computed(() => {
+  switch (currentConverter.value) {
+    case 'pdf': return 'PDF'
+    case 'audio': return 'Audio'
+    case 'video': return 'Video'
+    case 'image': return 'Image'
+    default: return 'All'
+  }
+})
+
+// 🎯 FILTERED FILES BY CURRENT CONVERTER
+const filteredFiles = computed(() => {
+  if (currentConverter.value === 'all') return queueStore.files
+  return queueStore.files.filter(f => f.converter === currentConverter.value)
+})
+
+// 🎯 CONVERTER-SPECIFIC STATS
+const pendingCount = computed(() => 
+  filteredFiles.value.filter(f => f.status === 'pending').length
+)
+
+const completedCount = computed(() => 
+  filteredFiles.value.filter(f => f.status === 'completed').length
+)
+
+const errorCount = computed(() => 
+  filteredFiles.value.filter(f => f.status === 'error').length
+)
+
+const hasPendingFiles = computed(() => pendingCount.value > 0)
+
+const converterProgress = computed(() => {
+  if (filteredFiles.value.length === 0) return 0
+  const total = filteredFiles.value.reduce((sum, file) => sum + file.progress, 0)
+  return Math.round(total / filteredFiles.value.length)
+})
+
+// 🎯 CONVERTER-SPECIFIC CLEARING FUNCTIONS
+function clearCompletedForConverter() {
+  const completedIds = filteredFiles.value
+    .filter(f => f.status === 'completed')
+    .map(f => f.id)
+  
+  completedIds.forEach(id => queueStore.removeFile(id))
+  console.log(`[QueueList] 🗑️ Cleared ${completedIds.length} completed ${converterName.value} files`)
+}
+
+function clearErrorsForConverter() {
+  const errorIds = filteredFiles.value
+    .filter(f => f.status === 'error')
+    .map(f => f.id)
+  
+  errorIds.forEach(id => queueStore.removeFile(id))
+  console.log(`[QueueList] 🗑️ Cleared ${errorIds.length} error ${converterName.value} files`)
+}
+
+function clearAllForConverter() {
+  const allIds = filteredFiles.value.map(f => f.id)
+  allIds.forEach(id => queueStore.removeFile(id))
+  console.log(`[QueueList] 🗑️ Cleared all ${allIds.length} ${converterName.value} files`)
+}
 
 const getStatusText = (status: QueuedFile['status']) => {
   switch (status) {
@@ -209,7 +284,7 @@ const formatFileSize = (bytes: number): string => {
   color: #666;
 }
 
-/* 🎯 BULK CONTROLS STYLING */
+/* 🎯 BULK CONTROLS STYLING - NO MANUAL DOWNLOAD! */
 .bulk-controls {
   padding: 0.75rem 1rem;
   background: #f8f9fa;
@@ -244,27 +319,6 @@ const formatFileSize = (bytes: number): string => {
     outline: none;
     border-color: #42b883;
     box-shadow: 0 0 0 2px rgba(66, 184, 131, 0.2);
-  }
-}
-
-.bulk-download-btn {
-  padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, #42b883, #3aa876);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(66, 184, 131, 0.3);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(66, 184, 131, 0.4);
-  }
-
-  &:active {
-    transform: translateY(0);
   }
 }
 
@@ -313,6 +367,15 @@ const formatFileSize = (bytes: number): string => {
     color: #842029;
     &:hover:not(:disabled) { 
       background: #f5c2c7; 
+      transform: translateY(-1px);
+    }
+  }
+
+  &.clear-all {
+    background: #dc3545;
+    color: white;
+    &:hover:not(:disabled) { 
+      background: #c82333; 
       transform: translateY(-1px);
     }
   }
@@ -391,7 +454,7 @@ const formatFileSize = (bytes: number): string => {
   &.paused { background: #fff3cd; color: #664d03; }
 }
 
-/* 🎯 DOWNLOAD BADGE */
+/* 🎯 AUTO-DOWNLOAD BADGE */
 .download-badge {
   background: #42b883;
   color: white;
@@ -474,16 +537,22 @@ const formatFileSize = (bytes: number): string => {
 }
 
 .priority-select {
-  padding: 0.125rem 0.25rem;
+  padding: 0.25rem 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 0.75rem;
   background: white;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #42b883;
+  }
 }
 
 .empty-queue {
-  padding: 2rem;
   text-align: center;
+  padding: 2rem 1rem;
   color: #666;
 
   .hint {
@@ -492,20 +561,24 @@ const formatFileSize = (bytes: number): string => {
   }
 }
 
-/* 🎯 BULK INFO STYLING */
+/* 🎯 BULK DOWNLOAD INFO */
 .bulk-info {
   padding: 0.75rem 1rem;
-  background: #e6fffa;
-  border-top: 1px solid #b2f5ea;
-  font-size: 0.75rem;
-  color: #234e52;
+  background: #f8f9fa;
+  border-top: 1px solid #eee;
+  font-size: 0.875rem;
 }
 
 .info-item {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
 
   &:last-child {
     margin-bottom: 0;
+  }
+
+  strong {
+    color: #2c3e50;
   }
 }
 </style>

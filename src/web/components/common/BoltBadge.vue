@@ -43,8 +43,8 @@ function handleAnimationEnd(event: AnimationEvent) {
 }
 
 .bolt-badge-container img {
-  width: 3.5rem; /* 🎯 Kleiner für weniger Störung */
-  height: 3.5rem;
+  width: 4.5rem; /* 🎯 Größer gemacht: war 3.5rem */
+  height: 4.5rem;
   border-radius: 50%;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
@@ -55,8 +55,8 @@ function handleAnimationEnd(event: AnimationEvent) {
   }
   
   .bolt-badge-container img {
-    width: 4rem; /* 🎯 Desktop: Etwas größer aber nicht zu groß */
-    height: 4rem;
+    width: 5rem; /* 🎯 Desktop: Größer gemacht: war 4rem */
+    height: 5rem;
   }
 }
 
@@ -68,8 +68,8 @@ function handleAnimationEnd(event: AnimationEvent) {
   }
   
   .bolt-badge-container img {
-    width: 3rem; /* 🎯 Mobile: Noch kleiner */
-    height: 3rem;
+    width: 4rem; /* 🎯 Mobile: Größer gemacht: war 3rem */
+    height: 4rem;
   }
 }
 
