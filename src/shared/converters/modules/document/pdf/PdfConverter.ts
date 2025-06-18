@@ -11,7 +11,7 @@ export class PdfConverter extends BaseConverter {
   constructor() {
     super()
     // Initialize PDF.js worker
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/proxy/unpkg/pdfjs-dist@5.3.31/build/pdf.worker.min.mjs'
   }
 
   async convert(file: File, options: ConverterOptions): Promise<ConversionResult> {

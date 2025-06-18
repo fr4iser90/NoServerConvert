@@ -1,19 +1,63 @@
 // Common converter layout
 .converter-layout {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 350px;
   gap: 2rem;
   max-width: 1600px;
   margin: 0 auto;
   padding: 2rem;
   min-height: calc(100vh - 140px);
+
+  // Responsive design for smaller screens
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr 300px;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 968px) {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    padding: 0.75rem;
+    gap: 1rem;
+  }
 }
 
 .converter-main {
+  min-width: 0; // Prevent grid overflow
+  
   h1 {
     text-align: center;
     margin-bottom: 2rem;
     color: #2c3e50;
+    
+    @media (max-width: 640px) {
+      margin-bottom: 1.5rem;
+      font-size: 1.75rem;
+    }
+  }
+}
+
+.queue-sidebar {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
+  min-width: 0; // Prevent overflow
+
+  @media (max-width: 968px) {
+    position: static;
+    order: -1; // Move queue to top on mobile
+  }
+
+  @media (max-width: 640px) {
+    border-radius: 6px;
   }
 }
 
@@ -24,16 +68,31 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 1rem;
   margin-bottom: 2rem;
+
+  @media (max-width: 640px) {
+    padding: 0.75rem;
+    margin-bottom: 1.5rem;
+    border-radius: 6px;
+  }
 }
 
 // Conversion options
 .conversion-options {
   margin-top: 2rem;
 
+  @media (max-width: 640px) {
+    margin-top: 1.5rem;
+  }
+
   h2 {
     text-align: center;
     margin-bottom: 1.5rem;
     color: #2c3e50;
+
+    @media (max-width: 640px) {
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
   }
 }
 
@@ -42,6 +101,17 @@
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
   padding: 1rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 0.5rem;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    padding: 0.25rem;
+  }
 }
 
 .option-card {
@@ -53,6 +123,11 @@
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  @media (max-width: 640px) {
+    padding: 1rem;
+    border-radius: 6px;
+  }
 
   &:hover:not(:disabled) {
     transform: translateY(-2px);
@@ -67,12 +142,20 @@
   h3 {
     color: #2c3e50;
     margin-bottom: 0.5rem;
+    
+    @media (max-width: 640px) {
+      font-size: 1rem;
+    }
   }
 
   p {
     color: #666;
     margin: 0;
     font-size: 0.875rem;
+    
+    @media (max-width: 640px) {
+      font-size: 0.8rem;
+    }
   }
 }
 
@@ -84,6 +167,11 @@
   color: #dc3545;
   border-radius: 4px;
   text-align: center;
+
+  @media (max-width: 640px) {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+  }
 }
 
 // Processing overlay
@@ -116,6 +204,10 @@
   p {
     color: #2c3e50;
     font-size: 1.1rem;
+    
+    @media (max-width: 640px) {
+      font-size: 1rem;
+    }
   }
 }
 

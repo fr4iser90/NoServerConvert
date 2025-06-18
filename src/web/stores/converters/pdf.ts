@@ -7,7 +7,7 @@ import { useQueueStore } from '@web/stores/queue'
 
 // Initialize PDF.js worker
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/proxy/unpkg/pdfjs-dist@5.3.31/build/pdf.worker.min.mjs'
 }
 
 interface PdfState {

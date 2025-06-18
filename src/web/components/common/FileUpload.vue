@@ -128,7 +128,9 @@ function handleDragOver(event: DragEvent) {
 function handleDragLeave(event: DragEvent) {
   if (props.disabled) return
   // Only set to false if we're leaving the drop zone entirely
-  if (!event.currentTarget?.contains(event.relatedTarget as Node)) {
+  const currentTarget = event.currentTarget as HTMLElement
+  const relatedTarget = event.relatedTarget as Node | null
+  if (!currentTarget?.contains(relatedTarget)) {
     isDragging.value = false
   }
 }
@@ -283,13 +285,25 @@ function triggerFileSelect() {
 .file-upload {
   position: relative;
   width: 100%;
-  min-height: 200px;
+  min-height: 220px;
   border: 2px dashed #cbd5e0;
   border-radius: 12px;
   background: #f7fafc;
   transition: all 0.3s ease;
   cursor: pointer;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  @media (max-width: 640px) {
+    min-height: 180px;
+    border-radius: 8px;
+  }
+
+  @media (max-width: 480px) {
+    min-height: 160px;
+  }
 
   &:hover:not(.is-disabled) {
     border-color: #4299e1;
@@ -303,6 +317,10 @@ function triggerFileSelect() {
     background: #e6fffa;
     transform: scale(1.02);
     box-shadow: 0 8px 25px rgba(56, 178, 172, 0.15);
+
+    @media (max-width: 640px) {
+      transform: scale(1.01);
+    }
   }
 
   &.has-error {
@@ -332,13 +350,19 @@ function triggerFileSelect() {
 }
 
 .upload-content {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   text-align: center;
   width: 90%;
-  padding: 1rem;
+  max-width: 500px;
+  padding: 1.5rem;
+
+  @media (max-width: 640px) {
+    padding: 1rem;
+    width: 95%;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+  }
 }
 
 .upload-icon {
@@ -347,6 +371,18 @@ function triggerFileSelect() {
   margin: 0 auto 1.5rem;
   color: #4299e1;
   transition: all 0.3s ease;
+
+  @media (max-width: 640px) {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 0.75rem;
+  }
 
   .is-dragging & {
     color: #38b2ac;
@@ -364,8 +400,18 @@ function triggerFileSelect() {
     font-size: 1.25rem;
     font-weight: 600;
     color: #2d3748;
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.75rem;
     transition: color 0.3s ease;
+    line-height: 1.3;
+
+    @media (max-width: 640px) {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    @media (max-width: 480px) {
+      font-size: 1rem;
+    }
 
     .is-dragging & {
       color: #38b2ac;
@@ -375,14 +421,29 @@ function triggerFileSelect() {
   .secondary-text {
     font-size: 0.875rem;
     color: #718096;
-    margin: 0 0 0.25rem;
+    margin: 0 0 0.5rem;
+    line-height: 1.4;
+
+    @media (max-width: 640px) {
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 480px) {
+      font-size: 0.75rem;
+    }
   }
 
   .hint-text {
     font-size: 0.75rem;
     color: #a0aec0;
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.75rem;
     font-style: italic;
+    line-height: 1.3;
+
+    @media (max-width: 640px) {
+      font-size: 0.7rem;
+      margin-bottom: 0.5rem;
+    }
   }
 
   .queue-info {
@@ -390,9 +451,16 @@ function triggerFileSelect() {
     color: #38b2ac;
     margin: 0;
     background: #e6fffa;
-    padding: 0.5rem;
-    border-radius: 4px;
+    padding: 0.75rem;
+    border-radius: 6px;
     border: 1px solid #b2f5ea;
+    line-height: 1.4;
+
+    @media (max-width: 640px) {
+      font-size: 0.7rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
   }
 }
 
@@ -406,6 +474,12 @@ function triggerFileSelect() {
   padding: 0.75rem;
   font-size: 0.875rem;
   text-align: center;
+  line-height: 1.3;
+
+  @media (max-width: 640px) {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
 }
 
 .upload-progress {
@@ -415,6 +489,10 @@ function triggerFileSelect() {
   right: 0;
   background: #edf2f7;
   padding: 0.75rem;
+
+  @media (max-width: 640px) {
+    padding: 0.5rem;
+  }
 }
 
 .progress-bar {
@@ -423,6 +501,11 @@ function triggerFileSelect() {
   border-radius: 2px;
   overflow: hidden;
   margin-bottom: 0.5rem;
+
+  @media (max-width: 640px) {
+    height: 3px;
+    margin-bottom: 0.375rem;
+  }
 }
 
 .progress-fill {
@@ -435,5 +518,9 @@ function triggerFileSelect() {
   font-size: 0.75rem;
   color: #4a5568;
   text-align: center;
+
+  @media (max-width: 640px) {
+    font-size: 0.7rem;
+  }
 }
 </style>
