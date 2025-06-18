@@ -13,6 +13,31 @@
       <div class="loading-text">
         <h3 v-if="title">{{ title }}</h3>
         <p>{{ message }}</p>
+        
+        <!-- File Counter -->
+        <div v-if="fileCount && fileCount > 1" class="file-counter">
+          File {{ currentFile }} of {{ fileCount }}
+        </div>
+        
+        <!-- Progress Bar -->
+        <div v-if="progress !== undefined" class="progress-container">
+          <div class="progress-bar">
+            <div 
+              class="progress-fill" 
+              :style="{ width: `${Math.max(0, Math.min(100, progress))}%` }"
+            ></div>
+          </div>
+          <div class="progress-text">{{ Math.round(progress) }}%</div>
+        </div>
+        
+        <!-- Cancel Button -->
+        <button 
+          v-if="cancellable" 
+          @click="$emit('cancel')" 
+          class="cancel-button"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   </div>
@@ -24,6 +49,14 @@ defineProps<{
   size?: 'small' | 'medium' | 'large'
   title?: string
   message: string
+  progress?: number
+  fileCount?: number
+  currentFile?: number
+  cancellable?: boolean
+}>()
+
+defineEmits<{
+  cancel: []
 }>()
 </script>
 
@@ -145,9 +178,63 @@ defineProps<{
   }
 
   p {
-    margin: 0;
+    margin: 0 0 1rem;
     color: #4a5568;
     font-size: 1rem;
+  }
+}
+
+.file-counter {
+  margin: 0.5rem 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.progress-container {
+  margin: 1rem 0;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #42b883, #369870);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  color: #4a5568;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cancel-button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #dc2626;
+  }
+
+  &:active {
+    background-color: #b91c1c;
   }
 }
 </style>

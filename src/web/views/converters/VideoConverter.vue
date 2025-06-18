@@ -1,12 +1,17 @@
 <template>
   <div class="converter-container">
-    <!-- Simple Loading Spinner -->
+    <!-- Advanced Loading Spinner with Progress -->
     <LoadingSpinner
       v-if="videoStore.isProcessing"
       overlay
       size="large"
       title="Video Converter"
-      message="Converting video..."
+      :message="videoStore.loadingMessage"
+      :progress="videoStore.loadingProgress"
+      :file-count="videoStore.totalFiles"
+      :current-file="videoStore.currentFile"
+      :cancellable="true"
+      @cancel="cancelConversion"
     />
 
     <div class="converter-main">
@@ -70,6 +75,10 @@ onMounted(async () => {
 
 function handleError(message: string) {
   videoStore.error = message
+}
+
+function cancelConversion() {
+  videoStore.cancelConversion()
 }
 </script>
 

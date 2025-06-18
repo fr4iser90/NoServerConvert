@@ -36,12 +36,98 @@ export const useVideoStore = defineStore('video-converter', {
       }
 
       try {
-        console.log('[Video Store] Getting FFmpeg instance from queue store...')
-        const queueStore = useQueueStore()
-        this.ffmpeg = await queueStore.getFFmpegInstance('video')
-        console.log('[Video Store] FFmpeg instance obtained successfully')
+        console.log('[Video Store] Creating own FFmpeg instance...')
+        
+        // Dynamic import to avoid loading FFmpeg unless needed
+        const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+        const { toBlobURL } = await import('@ffmpeg/util')
+        
+        // 🎯 USE NGINX PROXY FOR CORS - SINGLE THREAD VERSION!
+        const baseURL = '/proxy/unpkg/@ffmpeg/core@0.12.10/dist/esm'
+        
+        const ffmpeg = new FFmpeg()
+        
+        // Add event listeners
+        ffmpeg.on('log', ({ message }) => {
+          console.log(`[Video Store]`, message)
+        })
+        
+        ffmpeg.on('progress', ({ progress, time }) => {
+          console.log(`[Video Store] Progress:`, progress, 'Time:', time)
+          // 🎯 REAL PROGRESS UPDATES!
+          if (this.isProcessing && this.totalFiles > 0) {
+            const baseProgress = ((this.currentFile - 1) / this.totalFiles) * 100
+            const fileProgressWeight = 100 / this.totalFiles
+            const realFileProgress = Math.round(progress * 100)
+            
+            this.loadingProgress = Math.round(baseProgress + (realFileProgress * fileProgressWeight / 100))
+            console.log(`[Video Store] REAL Progress - File: ${realFileProgress}%, Overall: ${this.loadingProgress}%`)
+          }
+        })
+        
+        console.log(`[Video Store] Loading FFmpeg from: ${baseURL}`)
+        
+        // 🎯 EXPLICIT CORS HANDLING FOR CREDENTIALLESS
+        const fetchWithCors = async (url: string, type: string) => {
+          console.log(`[Video Store] Fetching ${url} with CORS...`)
+          const response = await fetch(url, {
+            mode: 'cors',
+            credentials: 'omit',
+            headers: {
+              'Accept': type === 'wasm' ? 'application/wasm' : 'text/javascript'
+            }
+          })
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${url}: ${response.status}`)
+          }
+          console.log(`[Video Store] ✅ Fetched ${url} successfully`)
+          const blob = await response.blob()
+          console.log(`[Video Store] ✅ Created blob for ${url}`)
+          const objectURL = URL.createObjectURL(blob)
+          console.log(`[Video Store] ✅ Created object URL for ${url}`)
+          return objectURL
+        }
+        
+        console.log(`[Video Store] 🎯 Starting to fetch FFmpeg files...`)
+        
+        const coreURL = await fetchWithCors(`${baseURL}/ffmpeg-core.js`, 'js')
+        console.log(`[Video Store] ✅ Core URL ready: ${coreURL}`)
+        
+        const wasmURL = await fetchWithCors(`${baseURL}/ffmpeg-core.wasm`, 'wasm')
+        console.log(`[Video Store] ✅ WASM URL ready: ${wasmURL}`)
+        
+        console.log(`[Video Store] 🎯 All URLs ready, calling FFmpeg.load()...`)
+        
+        // 🎯 TIMEOUT WRAPPER FOR FFMPEG.LOAD() - PREVENT INFINITE HANG!
+        const loadWithTimeout = (timeoutMs: number) => {
+          return new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error(`FFmpeg.load() timed out after ${timeoutMs}ms`))
+            }, timeoutMs)
+            
+            ffmpeg.load({
+              coreURL,
+              wasmURL,
+            }).then(() => {
+              clearTimeout(timeout)
+              resolve()
+            }).catch((error) => {
+              clearTimeout(timeout)
+              reject(error)
+            })
+          })
+        }
+        
+        // Load FFmpeg with 15 second timeout
+        await loadWithTimeout(15000)
+        
+        console.log(`[Video Store] 🎯 FFmpeg loaded successfully`)
+        
+        this.ffmpeg = ffmpeg
+        console.log('[Video Store] ✅ Own FFmpeg instance created and loaded')
+        
       } catch (error) {
-        console.error('[Video Store] Failed to get FFmpeg instance:', error)
+        console.error('[Video Store] ❌ Failed to create own FFmpeg instance:', error)
         this.error = `Failed to initialize video converter: ${error instanceof Error ? error.message : String(error)}`
         throw new Error(`Failed to initialize video converter: ${error instanceof Error ? error.message : String(error)}`)
       }
@@ -114,7 +200,7 @@ export const useVideoStore = defineStore('video-converter', {
         for (let i = 0; i < this.selectedFiles.length; i++) {
           const file = this.selectedFiles[i]
           this.currentFile = i + 1
-          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          // 🎯 REMOVED: Manual progress calculation - Real progress from FFmpeg listener!
           
           if (format === 'webm') {
             this.loadingMessage = `Converting ${file.name} to WebM (this may take several minutes)...`
@@ -312,7 +398,7 @@ export const useVideoStore = defineStore('video-converter', {
         for (let i = 0; i < this.selectedFiles.length; i++) {
           const file = this.selectedFiles[i]
           this.currentFile = i + 1
-          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          // 🎯 REMOVED: Manual progress calculation - Real progress from FFmpeg listener!
           this.loadingMessage = `Extracting audio from ${file.name}...`
 
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
@@ -386,7 +472,7 @@ export const useVideoStore = defineStore('video-converter', {
         for (let i = 0; i < this.selectedFiles.length; i++) {
           const file = this.selectedFiles[i]
           this.currentFile = i + 1
-          this.loadingProgress = Math.round(((i + 1) / this.selectedFiles.length) * 100)
+          // 🎯 REMOVED: Manual progress calculation - Real progress from FFmpeg listener!
           this.loadingMessage = `Compressing ${file.name}...`
 
           const inputFileName = 'input' + file.name.substring(file.name.lastIndexOf('.'))
@@ -440,6 +526,20 @@ export const useVideoStore = defineStore('video-converter', {
         this.error = err instanceof Error ? err.message : 'Compression failed'
         this.isProcessing = false
       }
+    },
+
+    cancelConversion() {
+      console.log('[Video Store] 🛑 Cancelling conversion...')
+      this.isProcessing = false
+      this.loadingMessage = 'Conversion cancelled'
+      this.loadingProgress = 0
+      
+      // Reset state
+      setTimeout(() => {
+        this.loadingMessage = ''
+        this.currentFile = 0
+        this.totalFiles = 0
+      }, 1000)
     }
   }
 })
