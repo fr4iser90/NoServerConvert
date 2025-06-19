@@ -411,4 +411,164 @@ a {
     justify-content: center;
   }
 }
+
+// 🎯 ENHANCED MOBILE RESPONSIVENESS
+@media (max-width: 480px) {
+  .privacy-page {
+    padding: 1rem 0;
+  }
+  
+  .container {
+    padding: 0 0.75rem;
+  }
+  
+  h1 {
+    font-size: 1.75rem;
+    margin-bottom: 2rem;
+  }
+  
+  .privacy-content {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  .privacy-section {
+    margin-bottom: 2rem;
+    
+    h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    
+    p {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    ul {
+      font-size: 0.875rem;
+      
+      li {
+        margin-bottom: 0.375rem;
+      }
+    }
+  }
+  
+  .feature-item {
+    padding: 1.25rem;
+    border-radius: 6px;
+    
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 0.375rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+  
+  .dont-item {
+    padding: 0.625rem;
+    gap: 0.75rem;
+    border-radius: 4px;
+    
+    .dont-icon {
+      font-size: 1rem;
+    }
+    
+    span:not(.dont-icon) {
+      font-size: 0.875rem;
+    }
+  }
+  
+  .step {
+    padding: 0.75rem;
+    gap: 0.75rem;
+    border-radius: 6px;
+  }
+  
+  .step-number {
+    width: 28px;
+    height: 28px;
+    font-size: 0.875rem;
+  }
+  
+  .step-content {
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+  
+  .security-item {
+    padding: 1.25rem;
+    border-radius: 6px;
+    
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 0.375rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+  
+  .compliance-badge {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    border-radius: 16px;
+  }
+  
+  .last-updated {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+}
+
+// 🎯 TOUCH DEVICE OPTIMIZATIONS
+@media (hover: none) and (pointer: coarse) {
+  .feature-item, .security-item {
+    // Better touch feedback
+    transition: transform 0.2s ease;
+    
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+  
+  .compliance-badge {
+    // Better touch feedback
+    transition: transform 0.2s ease;
+    
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+  
+  a {
+    // Larger touch target for links
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    
+    &:active {
+      opacity: 0.7;
+    }
+  }
+}
 </style>

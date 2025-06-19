@@ -144,6 +144,11 @@ body {
 
   .nav-logo {
     font-size: 1.1rem;
+    
+    .nav-logo-img {
+      width: 28px;
+      height: 28px;
+    }
   }
 
   .nav-links {
@@ -154,6 +159,82 @@ body {
       font-size: 0.8rem;
       padding: 0.375rem 0.75rem;
     }
+  }
+}
+
+// 🎯 ADDITIONAL MOBILE OPTIMIZATIONS
+@media (max-width: 480px) {
+  .nav {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .nav-logo {
+    font-size: 1rem;
+    gap: 0.5rem;
+    
+    .nav-logo-img {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .nav-links {
+    gap: 0.5rem;
+    
+    a {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+  }
+}
+
+// 🎯 MOBILE-FIRST TOUCH IMPROVEMENTS
+@media (hover: none) and (pointer: coarse) {
+  // Touch device optimizations
+  .nav-links a {
+    min-height: 44px; // Apple's recommended touch target size
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  // Larger touch targets for buttons
+  button, .convert-button, .remove-btn, .cancel-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+// 🎯 MOBILE TYPOGRAPHY IMPROVEMENTS
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  // Prevent zoom on form inputs
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+// 🎯 MOBILE SCROLL IMPROVEMENTS
+@media (max-width: 768px) {
+  // Smooth scrolling for mobile
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  // Better scroll performance
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  // Prevent horizontal scroll
+  body {
+    overflow-x: hidden;
   }
 }
 </style>

@@ -145,8 +145,8 @@
               <p>Each conversion runs in its own memory space and is automatically cleaned up afterward.</p>
             </div>
             <div class="security-item">
-              <h3>🔍 Open Source</h3>
-              <p>Our entire codebase is open source and available for security audits on GitHub.</p>
+              <h3>👁️ Code Transparency</h3>
+              <p>Our codebase is publicly available on GitHub for review and transparency at github.com/fr4iser90/NoServerConvert.</p>
             </div>
           </div>
         </section>
@@ -595,6 +595,193 @@ h1 {
 
   .browser-support {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+// 🎯 ENHANCED MOBILE RESPONSIVENESS
+@media (max-width: 480px) {
+  .how-it-works-page {
+    padding: 1rem 0;
+  }
+  
+  .container {
+    padding: 0 0.75rem;
+  }
+  
+  h1 {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .intro-section {
+    margin-bottom: 2rem;
+  }
+  
+  .intro-text {
+    font-size: 1.125rem;
+    padding: 0 0.5rem;
+  }
+  
+  .content {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  .section {
+    margin-bottom: 2.5rem;
+    
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+  }
+  
+  .arch-step {
+    padding: 1rem;
+    min-width: 120px;
+    
+    .arch-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+  
+  .arch-arrow {
+    font-size: 1.5rem;
+  }
+  
+  .tech-item {
+    padding: 1.5rem;
+    
+    .tech-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    h3 {
+      font-size: 1.125rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    p {
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+  }
+  
+  .process-step {
+    padding: 1.5rem;
+    gap: 1rem;
+  }
+  
+  .step-number {
+    width: 40px;
+    height: 40px;
+    font-size: 1.125rem;
+  }
+  
+  .step-content {
+    h3 {
+      font-size: 1.125rem;
+      margin-bottom: 0.375rem;
+    }
+    
+    p {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+  }
+  
+  .detail-tag {
+    font-size: 0.75rem;
+    padding: 0.1875rem 0.625rem;
+  }
+  
+  .security-item {
+    padding: 1.25rem;
+    
+    h3 {
+      font-size: 1rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+  
+  .perf-item {
+    padding: 1.25rem;
+    
+    .perf-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    h3 {
+      font-size: 1rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+  
+  .browser-support {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .browser-item {
+    padding: 1.25rem;
+    
+    .browser-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 0.375rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+  
+  .faq-item {
+    padding: 1.25rem;
+    
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    p {
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+  }
+}
+
+// 🎯 TOUCH DEVICE OPTIMIZATIONS
+@media (hover: none) and (pointer: coarse) {
+  .arch-step, .tech-item, .security-item, .perf-item, .browser-item {
+    // Better touch feedback
+    transition: transform 0.2s ease;
+    
+    &:active {
+      transform: scale(0.98);
+    }
   }
 }
 </style>

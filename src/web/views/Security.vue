@@ -687,4 +687,235 @@ h1 {
     flex-direction: column;
   }
 }
+
+// 🎯 ENHANCED MOBILE RESPONSIVENESS
+@media (max-width: 480px) {
+  .security-page {
+    padding: 1rem 0;
+  }
+  
+  .container {
+    padding: 0 0.75rem;
+  }
+  
+  h1 {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .hero-section {
+    margin-bottom: 2rem;
+  }
+  
+  .security-badge {
+    padding: 1.5rem 1rem !important;
+    border-radius: 12px;
+    
+    .badge-icon {
+      font-size: 2.5rem !important;
+      margin-bottom: 0.75rem;
+    }
+    
+    h2 {
+      font-size: 1.25rem !important;
+      margin-bottom: 0.75rem;
+    }
+    
+    p {
+      font-size: 0.875rem !important;
+    }
+  }
+  
+  .content {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  .section {
+    margin-bottom: 2.5rem;
+    
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+  }
+  
+  .principle-item {
+    padding: 1.5rem;
+    
+    .principle-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    h3 {
+      font-size: 1.125rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    p {
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+  }
+  
+  .measure-item {
+    padding: 1.5rem;
+    
+    .measure-header {
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      
+      .measure-icon {
+        font-size: 1.75rem;
+      }
+      
+      h3 {
+        font-size: 1.125rem;
+      }
+    }
+    
+    p {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .detail-badge {
+      font-size: 0.75rem;
+      padding: 0.1875rem 0.625rem;
+    }
+  }
+  
+  .audit-item {
+    padding: 1.5rem;
+    
+    h3 {
+      font-size: 1.125rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    ul {
+      font-size: 0.875rem;
+      
+      li {
+        margin-bottom: 0.375rem;
+      }
+    }
+  }
+  
+  .threat-item {
+    padding: 1.25rem;
+    
+    .threat-header {
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      
+      .threat-status {
+        font-size: 0.75rem;
+        padding: 0.1875rem 0.625rem;
+      }
+      
+      h3 {
+        font-size: 1rem;
+      }
+    }
+    
+    p {
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+  }
+  
+  .compliance-item {
+    padding: 1.5rem;
+    
+    .compliance-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+    }
+  }
+  
+  .practice-category {
+    padding: 1.5rem;
+    
+    h3 {
+      font-size: 1.125rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    ul {
+      font-size: 0.875rem;
+      
+      li {
+        margin-bottom: 0.375rem;
+      }
+    }
+  }
+  
+  .security-contact {
+    padding: 1.5rem;
+    border-radius: 8px;
+  }
+  
+  .contact-info {
+    h3 {
+      font-size: 1.125rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    p {
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+  }
+  
+  .contact-methods {
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  .contact-btn {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    text-align: center;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .contact-note {
+    font-size: 0.8125rem;
+  }
+}
+
+// 🎯 TOUCH DEVICE OPTIMIZATIONS
+@media (hover: none) and (pointer: coarse) {
+  .principle-item, .measure-item, .audit-item, .threat-item, .compliance-item, .practice-category {
+    // Better touch feedback
+    transition: transform 0.2s ease;
+    
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+  
+  .contact-btn {
+    // Better touch feedback
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
 </style>

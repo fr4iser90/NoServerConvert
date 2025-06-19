@@ -45,7 +45,7 @@
 
     <div class="footer-bottom">
       <div class="footer-bottom-content">
-        <p>&copy; 2024 NoServerConvert. Built with privacy in mind.</p>
+        <p>&copy; 2025 NoServerConvert. Built with privacy in mind.</p>
         <div class="footer-badges">
           <span class="badge">No Tracking</span>
           <span class="badge">No Cookies</span>

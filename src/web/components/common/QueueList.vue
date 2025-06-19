@@ -17,8 +17,8 @@
           @change="queueStore.setBulkDownloadMode(($event.target as HTMLSelectElement).value as 'pack10' | 'all')"
           class="mode-select"
         >
-          <option value="pack10">📦 10er-Pakete (auto)</option>
-          <option value="all">📋 Alle zusammen (am Ende)</option>
+          <option value="pack10">📦 10-Packs (auto)</option>
+          <option value="all">📋 All at End</option>
         </select>
       </div>
     </div>
@@ -142,14 +142,14 @@
     <!-- 🎯 BULK DOWNLOAD INFO -->
     <div v-if="filteredFiles.length > 0" class="bulk-info">
       <div class="info-item">
-        <strong>Download Mode:</strong> 
-        {{ queueStore.bulkDownloadMode === 'pack10' ? '📦 10er-Pakete (automatisch)' : '📋 Alle am Ende' }}
+        <strong>Download Mode:</strong>
+        {{ queueStore.bulkDownloadMode === 'pack10' ? '📦 10-Packs (automatic)' : '📋 All at End' }}
       </div>
       <div v-if="queueStore.bulkDownloadMode === 'pack10'" class="info-item">
-        💡 Alle 10 fertigen Dateien wird automatisch ein ZIP-Paket heruntergeladen
+        💡 Every 10 completed files will automatically download as a ZIP package
       </div>
-      <div v-else class="info-item">
-        💡 Alle Dateien werden am Ende als ein großes ZIP heruntergeladen
+      <div v-if="queueStore.bulkDownloadMode === 'all'" class="info-item">
+        💡 All files will be downloaded as one large ZIP at the end
       </div>
     </div>
   </div>

@@ -114,6 +114,19 @@ function cancelConversion() {
   margin: 0 auto;
   padding: 2rem;
   min-height: calc(100vh - 140px);
+  
+  // 🎯 MOBILE RESPONSIVE LAYOUT
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    min-height: auto;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    gap: 0.75rem;
+  }
 }
 
 .converter-main {
@@ -121,6 +134,17 @@ function cancelConversion() {
     text-align: center;
     margin-bottom: 2rem;
     color: #2c3e50;
+    
+    // 🎯 MOBILE TYPOGRAPHY
+    @media (max-width: 768px) {
+      font-size: 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    @media (max-width: 480px) {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
   }
 }
 
@@ -131,6 +155,14 @@ function cancelConversion() {
   color: #dc3545;
   border-radius: 4px;
   text-align: center;
+  
+  // 🎯 MOBILE ERROR MESSAGE
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    margin-top: 0.75rem;
+    border-radius: 6px;
+  }
 }
 
 .queue-sidebar {
@@ -140,5 +172,17 @@ function cancelConversion() {
   height: fit-content;
   position: sticky;
   top: 2rem;
+  
+  // 🎯 MOBILE QUEUE SIDEBAR
+  @media (max-width: 768px) {
+    position: static;
+    order: -1; // Move queue to top on mobile
+    border-radius: 6px;
+  }
+  
+  @media (max-width: 480px) {
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
 }
 </style>

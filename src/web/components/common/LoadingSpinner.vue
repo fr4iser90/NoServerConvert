@@ -101,6 +101,22 @@ defineEmits<{
   text-align: center;
   max-width: 400px;
   margin: 0 1rem;
+  
+  // 🎯 MOBILE RESPONSIVE LOADING SPINNER
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+    margin: 0 0.75rem;
+    max-width: 350px;
+    border-radius: 12px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 1rem;
+    margin: 0 0.5rem;
+    max-width: 280px;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
 }
 
 .spinner {
@@ -120,6 +136,17 @@ defineEmits<{
   &.large {
     width: 80px;
     height: 80px;
+    
+    // 🎯 MOBILE SPINNER SIZING
+    @media (max-width: 480px) {
+      width: 60px;
+      height: 60px;
+    }
+  }
+  
+  // 🎯 MOBILE SPINNER MARGIN
+  @media (max-width: 480px) {
+    margin: 0 auto 1rem;
   }
 }
 
@@ -152,6 +179,11 @@ defineEmits<{
     border-left-color: #42b883;
     animation-delay: 0.3s;
   }
+  
+  // 🎯 MOBILE SPINNER BORDER
+  @media (max-width: 480px) {
+    border-width: 2px;
+  }
 }
 
 @keyframes spin {
@@ -175,12 +207,25 @@ defineEmits<{
     color: #2c3e50;
     font-size: 1.25rem;
     font-weight: 600;
+    
+    // 🎯 MOBILE TITLE
+    @media (max-width: 480px) {
+      font-size: 1.125rem;
+      margin: 0 0 0.25rem;
+    }
   }
 
   p {
     margin: 0 0 1rem;
     color: #4a5568;
     font-size: 1rem;
+    
+    // 🎯 MOBILE MESSAGE
+    @media (max-width: 480px) {
+      font-size: 0.875rem;
+      margin: 0 0 0.75rem;
+      line-height: 1.4;
+    }
   }
 }
 
@@ -189,10 +234,21 @@ defineEmits<{
   color: #6b7280;
   font-size: 0.875rem;
   font-weight: 500;
+  
+  // 🎯 MOBILE FILE COUNTER
+  @media (max-width: 480px) {
+    font-size: 0.8125rem;
+    margin: 0.25rem 0;
+  }
 }
 
 .progress-container {
   margin: 1rem 0;
+  
+  // 🎯 MOBILE PROGRESS CONTAINER
+  @media (max-width: 480px) {
+    margin: 0.75rem 0;
+  }
 }
 
 .progress-bar {
@@ -202,6 +258,12 @@ defineEmits<{
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 0.5rem;
+  
+  // 🎯 MOBILE PROGRESS BAR
+  @media (max-width: 480px) {
+    height: 6px;
+    margin-bottom: 0.375rem;
+  }
 }
 
 .progress-fill {
@@ -215,6 +277,11 @@ defineEmits<{
   color: #4a5568;
   font-size: 0.875rem;
   font-weight: 600;
+  
+  // 🎯 MOBILE PROGRESS TEXT
+  @media (max-width: 480px) {
+    font-size: 0.8125rem;
+  }
 }
 
 .cancel-button {
@@ -228,6 +295,7 @@ defineEmits<{
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  min-width: 80px;
 
   &:hover {
     background-color: #dc2626;
@@ -235,6 +303,15 @@ defineEmits<{
 
   &:active {
     background-color: #b91c1c;
+  }
+  
+  // 🎯 MOBILE CANCEL BUTTON
+  @media (max-width: 480px) {
+    margin-top: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.8125rem;
+    min-width: 100px;
+    border-radius: 8px;
   }
 }
 </style>

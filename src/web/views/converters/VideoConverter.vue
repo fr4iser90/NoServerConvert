@@ -88,6 +88,20 @@ function cancelConversion() {
   gap: 2rem;
   height: 100%;
   padding: 2rem;
+  
+  // 🎯 MOBILE RESPONSIVE
+  @media (max-width: 768px) {
+    flex-direction: column;
+    padding: 1rem;
+    gap: 1rem;
+    height: auto;
+    min-height: 100vh;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
 }
 
 .converter-main {
@@ -103,12 +117,38 @@ function cancelConversion() {
     text-align: center;
     color: #2c3e50;
     margin-bottom: 1rem;
+    
+    // 🎯 MOBILE TYPOGRAPHY
+    @media (max-width: 768px) {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    @media (max-width: 480px) {
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+  }
+  
+  // 🎯 MOBILE SPACING
+  @media (max-width: 768px) {
+    gap: 1.5rem;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 1rem;
   }
 }
 
 .queue-sidebar {
   width: 300px;
   flex-shrink: 0;
+  
+  // 🎯 MOBILE QUEUE SIDEBAR
+  @media (max-width: 768px) {
+    width: 100%;
+    order: -1; // Move queue to top on mobile
+  }
 }
 
 .error-message {
@@ -117,5 +157,11 @@ function cancelConversion() {
   padding: 1rem;
   border-radius: 4px;
   text-align: center;
+  
+  // 🎯 MOBILE ERROR MESSAGE
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+  }
 }
 </style>

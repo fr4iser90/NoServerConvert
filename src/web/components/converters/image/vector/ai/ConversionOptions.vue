@@ -1,82 +1,75 @@
 <template>
   <div class="conversion-options">
-    <h2>Konvertierungsoptionen</h2>
+    <h2>Conversion Options</h2>
     
-    <div class="options-grid">
-      <div class="option-card">
-        <h3>AI zu Bild</h3>
-        <p>Konvertiert AI-Dateien in Bildformate</p>
-        <div class="conversion-settings">
-          <div class="setting-group">
-            <label>Bildformat:</label>
-            <select v-model="aiStore.imageFormat">
-              <option value="png">PNG</option>
-              <option value="jpg">JPG</option>
-              <option value="webp">WebP</option>
-            </select>
-          </div>
-          <div class="setting-group">
-            <label>Qualität:</label>
-            <select v-model="aiStore.imageQuality">
-              <option value="0.9">Hoch (90%)</option>
-              <option value="0.8">Mittel (80%)</option>
-              <option value="0.7">Niedrig (70%)</option>
-            </select>
-          </div>
-        </div>
-        <button
-          class="convert-button"
-          :disabled="!files.length || isProcessing"
-          @click="$emit('convert', 'image')"
-        >
-          Zu Bild konvertieren
-        </button>
+    <!-- Convert to Image -->
+    <div class="option-section">
+      <h3>Convert to Image</h3>
+      <p>Converts AI files to image formats</p>
+      
+      <!-- Format Selection -->
+      <div class="format-group">
+        <label>Output Format:</label>
+        <select v-model="selectedFormat" :disabled="isProcessing">
+          <option value="png">PNG</option>
+          <option value="jpg">JPG</option>
+          <option value="webp">WebP</option>
+        </select>
       </div>
-
-      <div class="option-card">
-        <h3>AI zu SVG</h3>
-        <p>Konvertiert AI-Dateien in SVG-Format</p>
-        <div class="conversion-settings">
-          <div class="setting-group">
-            <label>
-              <input type="checkbox" v-model="aiStore.optimizeSvg" />
-              SVG optimieren
-            </label>
-          </div>
-        </div>
-        <button
-          class="convert-button"
-          :disabled="!files.length || isProcessing"
-          @click="$emit('convert', 'svg')"
-        >
-          Zu SVG konvertieren
-        </button>
+      
+      <!-- Quality Settings (for JPG/WebP) -->
+      <div v-if="selectedFormat !== 'png'" class="quality-group">
+        <label>Quality: {{ quality }}%</label>
+        <input
+          type="range"
+          min="10"
+          max="100"
+          v-model="quality"
+          :disabled="isProcessing"
+        />
       </div>
-
-      <div class="option-card">
-        <h3>AI zu PDF</h3>
-        <p>Konvertiert AI-Dateien in PDF-Format</p>
-        <div class="conversion-settings">
-          <div class="setting-group">
-            <label>
-              <input type="checkbox" v-model="aiStore.compressPdf" />
-              PDF komprimieren
-            </label>
-          </div>
-        </div>
-        <button
-          class="convert-button"
-          :disabled="!files.length || isProcessing"
-          @click="$emit('convert', 'pdf')"
-        >
-          Zu PDF konvertieren
-        </button>
-      </div>
+      
+      <button
+        class="convert-button"
+        :disabled="!files.length || isProcessing"
+        @click="$emit('convert', 'image', { format: selectedFormat, quality })"
+      >
+        {{ isProcessing ? 'Converting...' : 'Convert to Image' }}
+      </button>
+    </div>
+    
+    <!-- Convert to SVG -->
+    <div class="option-section">
+      <h3>Convert to SVG</h3>
+      <p>Converts AI files to SVG format</p>
+      
+      <button
+        class="convert-button"
+        :disabled="!files.length || isProcessing"
+        @click="$emit('convert', 'svg')"
+      >
+        {{ isProcessing ? 'Converting...' : 'Convert to SVG' }}
+      </button>
+    </div>
+    
+    <!-- Convert to PDF -->
+    <div class="option-section">
+      <h3>Convert to PDF</h3>
+      <p>Converts AI files to PDF format</p>
+      
+      <button
+        class="convert-button"
+        :disabled="!files.length || isProcessing"
+        @click="$emit('convert', 'pdf')"
+      >
+        {{ isProcessing ? 'Converting...' : 'Convert to PDF' }}
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useAiStore } from '@web/stores/converters/ai'
 
 defineProps<{
@@ -85,10 +78,14 @@ defineProps<{
 }>()
 
 defineEmits<{
-  (e: 'convert', format: 'image' | 'svg' | 'pdf'): void
+  (e: 'convert', format: 'image' | 'svg' | 'pdf', options?: { format: string, quality: number }): void
 }>()
 
 const aiStore = useAiStore()
+
+// Reactive variables for the form
+const selectedFormat = ref('png')
+const quality = ref(90)
 </script>
 
 <style lang="scss" scoped>

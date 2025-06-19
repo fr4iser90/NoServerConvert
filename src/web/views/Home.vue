@@ -369,4 +369,123 @@ h1 {
     gap: 1.5rem;
   }
 }
+
+// 🎯 ENHANCED MOBILE RESPONSIVENESS
+@media (max-width: 480px) {
+  .hero-section {
+    padding: 2rem 0.75rem;
+    
+    .main-logo {
+      width: 100px;
+      height: 100px;
+    }
+  }
+  
+  h1 {
+    font-size: 2rem !important;
+    margin-bottom: 0.75rem;
+  }
+  
+  .subtitle {
+    font-size: 1.125rem !important;
+    margin-bottom: 1.5rem;
+  }
+  
+  .description {
+    font-size: 1rem;
+    padding: 0 0.5rem;
+  }
+  
+  .features-section {
+    padding: 0 0.75rem 2rem;
+    
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 2rem;
+    }
+  }
+  
+  .converter-grid {
+    gap: 1rem;
+    padding: 0;
+  }
+  
+  .converter-card {
+    padding: 2rem 1.5rem;
+    
+    .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    h3 {
+      font-size: 1.25rem;
+    }
+    
+    p {
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+  }
+  
+  .stats-section {
+    padding: 1.5rem 0.75rem;
+    margin-bottom: 2rem;
+  }
+  
+  .stats-grid {
+    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .stat-item {
+    padding: 1rem;
+  }
+  
+  .stat-number {
+    font-size: 2.5rem;
+  }
+  
+  .info-section {
+    padding: 0 0.75rem 2rem;
+  }
+  
+  .info-cards {
+    gap: 1rem;
+  }
+  
+  .info-card {
+    padding: 2rem 1.5rem;
+    
+    .info-icon {
+      font-size: 2.5rem;
+    }
+    
+    h3 {
+      font-size: 1.125rem;
+    }
+    
+    p {
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+  }
+}
+
+// 🎯 TOUCH DEVICE OPTIMIZATIONS
+@media (hover: none) and (pointer: coarse) {
+  .converter-card {
+    // Better touch feedback
+    &:active {
+      transform: translateY(-4px) scale(0.98);
+    }
+  }
+  
+  .main-logo {
+    // Disable hover effects on touch devices
+    &:hover {
+      transform: none;
+    }
+  }
+}
 </style>

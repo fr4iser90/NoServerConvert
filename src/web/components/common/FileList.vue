@@ -10,15 +10,15 @@
         <button 
           class="remove-btn" 
           @click="$emit('remove', file)"
-          title="Datei entfernen"
+          title="Remove file"
         >
-          Entfernen
+          ×
         </button>
       </div>
     </div>
   </div>
   <div v-else class="empty-state">
-    Keine Dateien vorhanden
+    No files available
   </div>
 </template>
 

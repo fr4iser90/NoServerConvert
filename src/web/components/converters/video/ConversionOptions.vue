@@ -111,6 +111,16 @@ const videoStore = useVideoStore()
     text-align: center;
     margin-bottom: 1.5rem;
     color: #2c3e50;
+    
+    @media (max-width: 768px) {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 480px) {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
   }
 }
 
@@ -118,6 +128,15 @@ const videoStore = useVideoStore()
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 0.75rem;
+  }
 }
 
 .option-card {
@@ -129,12 +148,32 @@ const videoStore = useVideoStore()
   h3 {
     color: #2c3e50;
     margin-bottom: 0.5rem;
+    
+    @media (max-width: 480px) {
+      font-size: 1.125rem;
+      margin-bottom: 0.375rem;
+    }
   }
 
   p {
     color: #666;
     margin: 0 0 1rem;
     font-size: 0.875rem;
+    
+    @media (max-width: 480px) {
+      font-size: 0.8125rem;
+      margin-bottom: 0.75rem;
+      line-height: 1.4;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    padding: 1.25rem;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 1rem;
+    border-radius: 6px;
   }
 }
 
@@ -142,6 +181,11 @@ const videoStore = useVideoStore()
   margin: 1rem 0;
   padding: 1rem 0;
   border-top: 1px solid #eee;
+  
+  @media (max-width: 480px) {
+    margin: 0.75rem 0;
+    padding: 0.75rem 0;
+  }
 }
 
 .setting-group {
@@ -153,6 +197,10 @@ const videoStore = useVideoStore()
   label {
     color: #666;
     font-size: 0.875rem;
+    
+    @media (max-width: 480px) {
+      font-size: 0.8125rem;
+    }
   }
 
   select {
@@ -166,12 +214,28 @@ const videoStore = useVideoStore()
       opacity: 0.7;
       cursor: not-allowed;
     }
+    
+    @media (max-width: 480px) {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      border-radius: 6px;
+    }
   }
 
   .quality-hint {
     color: #666;
     font-size: 0.75rem;
     font-style: italic;
+    
+    @media (max-width: 480px) {
+      font-size: 0.6875rem;
+      line-height: 1.3;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    gap: 0.375rem;
+    margin-bottom: 0.375rem;
   }
 }
 
@@ -194,6 +258,13 @@ const videoStore = useVideoStore()
     opacity: 0.7;
     cursor: not-allowed;
     background: #94a3b8;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    font-weight: 600;
   }
 }
 </style>
