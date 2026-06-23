@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import { createHead } from '@vueuse/head'
+import { createHead } from '@unhead/vue/client'
 import router from '@web/router'
 import App from '@web/App.vue'
 import './style.css'

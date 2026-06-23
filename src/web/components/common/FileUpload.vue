@@ -238,12 +238,7 @@ function validateFile(file: File) {
   // Check file type
   if (props.accept) {
     const acceptedTypes = props.accept.split(',').map(type => type.trim())
-    const isAccepted = acceptedTypes.some(acceptedType => {
-      if (acceptedType.startsWith('.')) {
-        return file.name.toLowerCase().endsWith(acceptedType.toLowerCase())
-      }
-      return file.type.match(acceptedType.replace('*', '.*'))
-    })
+    const isAccepted = acceptedTypes.some(acceptedType => isAcceptedFileType(file, acceptedType))
 
     if (!isAccepted) {
       throw ErrorHandler.createError(
@@ -264,6 +259,22 @@ function validateFile(file: File) {
       file.name
     )
   }
+}
+
+function isAcceptedFileType(file: File, acceptedType: string) {
+  if (acceptedType.startsWith('.')) {
+    return file.name.toLowerCase().endsWith(acceptedType.toLowerCase())
+  }
+
+  if (!file.type) {
+    return false
+  }
+
+  if (acceptedType.endsWith('/*')) {
+    return file.type.startsWith(acceptedType.slice(0, -1))
+  }
+
+  return file.type === acceptedType
 }
 
 function formatFileSize(bytes: number): string {

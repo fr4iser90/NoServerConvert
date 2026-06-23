@@ -30,8 +30,10 @@ export default defineConfig({
         entryFileNames: '[name].js',
         chunkFileNames: '[name].js',
         assetFileNames: '[name].[ext]',
-        manualChunks: {
-          pdfjs: ['pdfjs-dist']
+        manualChunks(id) {
+          if (id.includes('node_modules/pdfjs-dist')) {
+            return 'pdfjs'
+          }
         }
       }
     }

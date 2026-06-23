@@ -1,0 +1,30 @@
+{
+  "semgrep": {
+    "accepted_findings": [
+      {
+        "rule_id": "generic.nginx.security.missing-internal.missing-internal",
+        "path_regex": "^nginx\\.conf$",
+        "message_regex": ".*proxy_pass.*internal.*",
+        "reason": "The proxy location is intentionally public and pinned to the fixed upstream host unpkg.com. Adding internal would break the app's public CDN proxy route; this is not a generic SSRF proxy."
+      },
+      {
+        "rule_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+        "path_regex": "^src/shared/utils/errorHandler\\.ts$",
+        "message_regex": "Detected string concatenation with a non-literal variable in a util\\.format / console\\.log function\\..*",
+        "reason": "Browser console logging only. The value is not used as a server-side format string, authorization decision, or persisted security log."
+      },
+      {
+        "rule_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+        "path_regex": "^src/web/stores/converters/pdf\\.ts$",
+        "message_regex": "Detected string concatenation with a non-literal variable in a util\\.format / console\\.log function\\..*",
+        "reason": "Browser console logging only. User-controlled file names are not used as server-side format strings, authorization decisions, or persisted security logs."
+      },
+      {
+        "rule_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+        "path_regex": "^src/web/stores/queue\\.ts$",
+        "message_regex": "Detected string concatenation with a non-literal variable in a util\\.format / console\\.log function\\..*",
+        "reason": "Browser console logging only. User-controlled file names/options are not used as server-side format strings, authorization decisions, or persisted security logs."
+      }
+    ]
+  }
+}

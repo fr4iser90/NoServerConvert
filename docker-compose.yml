@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: noserverconvert
     ports:
-      - "8080:80"
+      - "8080:8080"
     dns:
       - 1.1.1.1
     restart: unless-stopped
@@ -21,7 +21,7 @@ services:
     #   - "traefik.http.routers.noserverconvert.tls=true"
     #   - "traefik.http.routers.noserverconvert.tls.certresolver=http_resolver"
     #   - "traefik.http.routers.noserverconvert.middlewares=default@file,rate-limit@docker"
-    #   - "traefik.http.services.noserverconvert.loadbalancer.server.port=80"
+    #   - "traefik.http.services.noserverconvert.loadbalancer.server.port=8080"
     #   - "traefik.http.services.noserverconvert.loadbalancer.sticky.cookie.httpOnly=true"
     #   - "traefik.http.services.noserverconvert.loadbalancer.sticky.cookie.secure=true"
 
