@@ -53,12 +53,92 @@
           {{ disabled ? 'Converting...' : 'Convert to HTML' }}
         </button>
       </div>
+
+      <div class="option-card">
+        <h3>Compress PDF</h3>
+        <p>Reduce file size by rebuilding pages as optimized images.</p>
+        <div class="conversion-settings">
+          <div class="setting-group setting-group--stacked">
+            <label>Compression Level:</label>
+            <select v-model="pdfStore.compressionPreset" :disabled="disabled">
+              <option
+                v-for="(preset, key) in PDF_COMPRESSION_PRESETS"
+                :key="key"
+                :value="key"
+              >
+                {{ preset.label }}
+              </option>
+            </select>
+            <span class="setting-hint">
+              {{ PDF_COMPRESSION_PRESETS[pdfStore.compressionPreset].description }}
+            </span>
+          </div>
+          <div class="setting-group setting-group--stacked">
+            <label>
+              <input
+                type="checkbox"
+                v-model="pdfStore.useTargetSize"
+                :disabled="disabled"
+              />
+              Try to reach target size
+            </label>
+            <div class="inline-input">
+              <input
+                type="number"
+                min="1"
+                step="0.1"
+                v-model.number="pdfStore.targetSizeMb"
+                :disabled="disabled || !pdfStore.useTargetSize"
+              />
+              <span>MB</span>
+            </div>
+            <span class="setting-hint">
+              Adds stronger fallback attempts until the target is reached. If the target is impossible, no file is downloaded.
+            </span>
+          </div>
+          <div class="setting-group setting-group--stacked">
+            <label>Pages to compress (optional):</label>
+            <input
+              type="text"
+              v-model="pdfStore.pageSelection"
+              placeholder="All pages, or e.g. 1,3-5"
+              :disabled="disabled"
+            />
+            <span class="setting-hint">
+              Leave empty to compress all pages. Use this for image-heavy pages while preserving text pages.
+            </span>
+          </div>
+          <div class="setting-group setting-group--stacked">
+            <label>
+              <input
+                type="checkbox"
+                v-model="pdfStore.useQpdfOptimization"
+                :disabled="disabled"
+              />
+              Advanced qPDF optimization (experimental)
+            </label>
+            <span class="setting-hint">
+              Loads qPDF WASM only when compressing. This can improve PDF structure/stream compression, but adds a larger one-time download and uses more CPU/RAM.
+            </span>
+          </div>
+        </div>
+        <p class="warning-text">
+          Best for scanned PDFs. Compressed pages lose text selection, links and forms. Unselected pages are copied from the original where possible.
+        </p>
+        <button
+          class="convert-button"
+          :disabled="!files.length || disabled"
+          @click="$emit('convert', 'compress')"
+        >
+          {{ disabled ? 'Compressing...' : 'Compress PDF' }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { usePdfStore } from '@web/stores/converters/pdf'
+import { PDF_COMPRESSION_PRESETS, usePdfStore } from '@web/stores/converters/pdf'
 
 defineProps<{
   files: File[]
@@ -68,7 +148,7 @@ defineProps<{
 }>()
 
 defineEmits<{
-  (e: 'convert', type: 'image' | 'text' | 'html'): void
+  (e: 'convert', type: 'image' | 'text' | 'html' | 'compress'): void
 }>()
 
 const pdfStore = usePdfStore()
@@ -124,7 +204,9 @@ const pdfStore = usePdfStore()
     font-size: 0.875rem;
   }
 
-  select {
+  select,
+  input[type="number"],
+  input[type="text"] {
     padding: 0.25rem 0.5rem;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -143,6 +225,37 @@ const pdfStore = usePdfStore()
       cursor: not-allowed;
     }
   }
+
+  &--stacked {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+.inline-input {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    width: 6rem;
+  }
+
+  span {
+    color: #64748b;
+    font-size: 0.875rem;
+  }
+}
+
+.setting-hint,
+.warning-text {
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.warning-text {
+  margin-top: 0;
 }
 
 .convert-button {

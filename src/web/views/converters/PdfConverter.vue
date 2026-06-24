@@ -76,6 +76,11 @@ function handleFilesQueued(files: File[], converterType: string) {
   queueStore.addFiles(files, converterType, {
     format: 'image',
     imageFormat: pdfStore.imageFormat,
+    compressionPreset: pdfStore.compressionPreset,
+    useQpdfOptimization: pdfStore.useQpdfOptimization,
+    useTargetSize: pdfStore.useTargetSize,
+    targetSizeMb: pdfStore.targetSizeMb,
+    pageSelection: pdfStore.pageSelection,
     useZip: pdfStore.useZip
   })
 }
@@ -84,7 +89,7 @@ function handleError(message: string) {
   pdfStore.error = message
 }
 
-function handleConvert(type: 'image' | 'text' | 'html') {
+function handleConvert(type: 'image' | 'text' | 'html' | 'compress') {
   // Start conversion for immediate files
   pdfStore.startConversion(type)
   
@@ -92,6 +97,11 @@ function handleConvert(type: 'image' | 'text' | 'html') {
   queueStore.updateQueueOptions('pdf', {
     format: type,
     imageFormat: pdfStore.imageFormat,
+    compressionPreset: pdfStore.compressionPreset,
+    useQpdfOptimization: pdfStore.useQpdfOptimization,
+    useTargetSize: pdfStore.useTargetSize,
+    targetSizeMb: pdfStore.targetSizeMb,
+    pageSelection: pdfStore.pageSelection,
     useZip: pdfStore.useZip
   })
 }
