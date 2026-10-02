@@ -37,7 +37,7 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.9.1",
-    "@vueuse/core": "^13.3.0",
+    "@vueuse/core": "^15.0.0",
     "jsdom": "^26.1.0",
     "pinia": "^3.0.3",
     "sass": "^1.89.2",
