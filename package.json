@@ -23,7 +23,7 @@
     "@ffmpeg/ffmpeg": "0.12.10",
     "@ffmpeg/util": "^0.12.2",
     "@unhead/vue": "^3.1.4",
-    "jszip": "^3.10.1",
+    "jszip": "^3.10.2",
     "libraw.js": "^3.0.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.0.227",
