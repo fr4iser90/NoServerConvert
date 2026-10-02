@@ -29,7 +29,7 @@
     "pdfjs-dist": "^6.0.227",
     "qpdf-run": "^0.2.1",
     "sharp": "^0.34.2",
-    "vue": "^3.5.13"
+    "vue": "^3.5.43"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
