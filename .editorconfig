@@ -1,0 +1,42 @@
+# Editor Configuration File
+# Enforced by pre-commit hook (editorconfig-checker)
+
+# Root project
+root = true
+
+# All files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Python files
+[*.py]
+indent_size = 4
+
+# JavaScript / TypeScript files
+[*.{js,ts,jsx,tsx}]
+indent_size = 2
+
+# JSON files
+[{package.json,tsconfig.json,jsconfig.json,.eslintrc.json}]
+indent_size = 2
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+
+# Shell scripts
+[*.sh]
+indent_size = 2
+
+# Makefiles
+[Makefile]
+indent_style = tab

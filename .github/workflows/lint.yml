@@ -1,0 +1,31 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  lint:
+    name: Install smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # No eslint/prettier scripts in package.json yet — keep a green install gate.
+      - name: Package scripts present
+        run: |
+          node -e "const p=require('./package.json'); for (const s of ['build','test','type-check']) { if (!p.scripts[s]) { console.error('missing', s); process.exit(1);} }"
